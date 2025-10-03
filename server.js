@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const PORT = 3000; // 请确保这个端口在你的小主机上是开放的且未被占用
+const PORT = 40050; // 请确保这个端口在你的小主机上是开放的且未被占用
 
 // 定义一个简单的 GET 路由
 app.get('/', (req, res) => {
