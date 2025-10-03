@@ -30,7 +30,7 @@ jobs:
             # =========================================================
             NPM_BIN="/opt/alt/alt-nodejs20/root/bin/npm"
             NODE_BIN="/opt/alt/alt-nodejs20/root/bin/node"
-            PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/node-app"
+            PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/node-app/node-backend-app"
             MAIN_FILE="server.js"
             
             # =========================================================
