@@ -21,7 +21,7 @@ app.get('/version', (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Access at: http://your_host_ip:${PORT}`);
 });
