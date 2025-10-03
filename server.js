@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
 // 如果你想部署后修改版本来测试更新
 app.get('/version', (req, res) => {
   res.json({
-    version: '1.0.0', // 部署成功后，你可以修改这里来测试更新
+    version: '1.0.1', // 部署成功后，你可以修改这里来测试更新
     deployedBy: 'GitHub Actions'
   });
 });
