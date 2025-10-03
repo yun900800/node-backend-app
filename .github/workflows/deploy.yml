@@ -21,6 +21,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 2323
           
           # 部署脚本，注意这里是多行脚本的 YAML 格式
           script: |
@@ -38,7 +39,7 @@ jobs:
             echo "-> 尝试停止旧的 Node 进程..."
             # pkill -f 通过匹配整个命令行参数来终止旧进程
             # || true 确保即使没有找到进程也不会报错
-            pkill -f "${PROJECT_DIR}/${MAIN_FILE}" || true 
+            # pkill -f "${PROJECT_DIR}/${MAIN_FILE}" || true 
 
             # =========================================================
             # 3. 更新代码和安装依赖
