@@ -1,6 +1,8 @@
 const express = require('express');
 const app = express();
-const PORT = 40050; // 请确保这个端口在你的小主机上是开放的且未被占用
+const PORT = process.env.PORT || 40050; 
+const HOST = '0.0.0.0'; 
+
 
 // 定义一个简单的 GET 路由
 app.get('/', (req, res) => {
@@ -21,7 +23,7 @@ app.get('/version', (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, HOST, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Access at: http://your_host_ip:${PORT}`);
 });
