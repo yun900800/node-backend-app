@@ -1,0 +1,12 @@
+{
+  "name": "git-action-test-app",
+  "version": "1.0.0",
+  "description": "A simple Express app for testing GitHub Actions deployment.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
