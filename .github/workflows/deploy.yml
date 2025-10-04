@@ -81,24 +81,22 @@ jobs:
       - run: npm install --production
 
       # -------------------------------------------------------------
-      - name: 3. Deploy Code (SCP/RSYNC - 文件传输)
-        # 使用 appleboy/scp-action 将整个项目（包括 node_modules）上传
-        uses: appleboy/scp-action@v0.1.7 
+      - name: 3. Deploy Code (Rsync - 更可靠的方案)
+        # 使用 rsync-action，它专精于 rsync 传输
+        uses: burnett01/rsync-action@v1.2.0 # 使用一个专用的 rsync Action
         with:
+          # SSH 密钥和主机信息
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
-          # 变更为当前目录 '.'
-          source: '.'  
-          target: /home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/
-          overwrite: true
-          # 强制禁用 tar 模式，以避免 FreeBSD 的 tar 不兼容问题
-          use_tar: false 
-          # 建议同时保持 rsync 模式以提高效率
-          rsync: true 
-          # rsync 的常用选项，确保递归、时间戳保留、详细输出等
-          rsync_options: -rltDvz
+          
+          # rsync 的源和目标路径
+          path: './' # 传输本地当前目录 (Runner)
+          target: /home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/ # 传送到 Serv00
+          
+          # 常用 rsync 选项：
+          options: -rltDvz
 
       # -------------------------------------------------------------
       - name: 4. Restart Node.js Service (SSH - 进程管理)
