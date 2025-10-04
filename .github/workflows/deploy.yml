@@ -55,6 +55,16 @@
             
 #             echo "-> 代码部署完成。进程将由 Cron Job 启动/重启。"
 
+name: Deploy Node.js Project to Serv00
+
+on:
+  # ----------------------------------------
+  # 修正：当代码被推送到 master 分支时触发
+  # ----------------------------------------
+  push:
+    branches:
+      - master 
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
