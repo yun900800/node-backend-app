@@ -83,23 +83,22 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
-          # 关键配置 1: 禁用严格主机密钥检查
-          # 这样可以解决 "Host key verification failed" 错误
-          # ⚠️ 只有在 CI/CD 环境中才建议这样做
-          script_options: "-o StrictHostKeyChecking=no" 
           
-          # 这个 script 块会在 Runner 上执行。
+          # ⚠️ 移除 script_options，因为它无效！
+          
           script: |
             REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
             
+            # 统一的 SSH 选项：-o StrictHostKeyChecking=no
+            SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
+            
             echo "-> 正在创建远程目录（如果不存在）..."
-            # 1. 确保目录存在 (此 SSH 命令将继承 StrictHostKeyChecking=no 的选项)
-            ssh -p 22 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
+            # 1. 确保目录存在：手动添加 SSH 选项
+            ssh ${SSH_OPTIONS} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
             
             echo "-> 开始使用 rsync 同步文件..."
-            # 2. rsync 传输 (也继承了 StrictHostKeyChecking=no)
-            # 关键：**再次确认**没有 -i /path/to/key 参数。
-            rsync -rltDvz --delete -e "ssh -p 22" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
+            # 2. rsync 传输：通过 -e 参数传递 SSH 选项
+            rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
             
             echo "-> 文件同步完成。"
 
