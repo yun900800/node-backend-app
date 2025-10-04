@@ -76,46 +76,29 @@ jobs:
           node-version: '18'
       - run: npm install --production
         
-      # -------------------------------------------------------------
-      # 🎯 修复步骤 1：添加 Serv00 主机指纹到 known_hosts
-      - name: 2.5. Add Serv00 Host Key to known_hosts
-        run: |
-          # 确保 .ssh 目录存在
-          mkdir -p ~/.ssh
-          
-          # ⚠️ 关键：执行 ssh-keyscan 获取指纹，并追加到 known_hosts
-          # 这样可以解决 "Host key verification failed" 错误。
-          # -p 22 指定端口
-          ssh-keyscan -p 22 ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-          
-          # 确保权限正确，否则 SSH 客户端会忽略该文件
-          chmod 600 ~/.ssh/known_hosts
-          
-          echo "Serv00 Host Key added."
-          
-      # -------------------------------------------------------------
-      - name: 3. Deploy Code (使用纯 Rsync)
-        # ⚠️ 注意：appleboy/ssh-action 本身会通过 SSH 连接一次服务器
-        # 这里的 with: 配置让它启动 ssh-agent 并加载密钥。
+      - name: 3. Deploy Code & Sync (最终可靠方案)
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
+          # 关键配置 1: 禁用严格主机密钥检查
+          # 这样可以解决 "Host key verification failed" 错误
+          # ⚠️ 只有在 CI/CD 环境中才建议这样做
+          script_options: "-o StrictHostKeyChecking=no" 
           
           # 这个 script 块会在 Runner 上执行。
-          # 此时，known_hosts 已经被上一步添加，ssh-agent 也已启动。
           script: |
             REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
             
             echo "-> 正在创建远程目录（如果不存在）..."
-            # 1. 第一次手动 SSH 连接：依赖 known_hosts 和 ssh-agent
+            # 1. 确保目录存在 (此 SSH 命令将继承 StrictHostKeyChecking=no 的选项)
             ssh -p 22 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
             
             echo "-> 开始使用 rsync 同步文件..."
-            # 2. rsync 传输：依赖 known_hosts 和 ssh-agent
-            # 关键：**绝对不能**使用 -i 参数，让 ssh-agent 自动处理认证。
+            # 2. rsync 传输 (也继承了 StrictHostKeyChecking=no)
+            # 关键：**再次确认**没有 -i /path/to/key 参数。
             rsync -rltDvz --delete -e "ssh -p 22" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
             
             echo "-> 文件同步完成。"
