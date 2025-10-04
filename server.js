@@ -45,7 +45,7 @@ app.get('/', (req, res) => {
 app.get('/version', (req, res) => {
   console.log('Version endpoint was hit');
   res.json({
-    version: '1.0.2', // 部署成功后，你可以修改这里来测试更新
+    version: '1.0.3', // 部署成功后，你可以修改这里来测试更新
     deployedBy: 'GitHub Actions'
   });
 });
