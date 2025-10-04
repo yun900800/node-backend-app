@@ -76,41 +76,48 @@ jobs:
           node-version: '18'
       - run: npm install --production
         
-      - name: 3. Deploy Code & Sync (最终可靠方案)
-        uses: appleboy/ssh-action@v1.0.0
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 3：加载私钥到 ssh-agent
+      # 使用专门的 Action 保证密钥被正确识别和加载
+      - name: 3. Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0 # 这是一个更稳定、专用于 ssh-agent 的 Action
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: 22
+          # 加载您的私钥，没有密语时也适用
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           
-          # ⚠️ 移除 script_options，因为它无效！
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 4：Deploy Code (使用纯 Rsync)
+      - name: 4. Deploy Code & Sync
+        # 使用标准的 run 步骤，它会自动继承 ssh-agent 的配置
+        run: |
+          REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
+          HOST=${{ secrets.DEPLOY_HOST }}
+          USER=${{ secrets.DEPLOY_USER }}
+
+          # 统一的 SSH 选项：-o StrictHostKeyChecking=no 解决主机验证失败
+          SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
+
+          echo "-> 正在创建远程目录（如果不存在）..."
+          # 1. 确保目录存在：ssh 命令将通过 ssh-agent 认证
+          ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
           
-          script: |
-            REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
-            
-            # 统一的 SSH 选项：-o StrictHostKeyChecking=no
-            SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
-            
-            echo "-> 正在创建远程目录（如果不存在）..."
-            # 1. 确保目录存在：手动添加 SSH 选项
-            ssh ${SSH_OPTIONS} ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
-            
-            echo "-> 开始使用 rsync 同步文件..."
-            # 2. rsync 传输：通过 -e 参数传递 SSH 选项
-            rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
-            
-            echo "-> 文件同步完成。"
+          echo "-> 开始使用 rsync 同步文件..."
+          # 2. rsync 传输：通过 -e 参数和 ssh-agent 认证
+          rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
+          
+          echo "-> 文件同步完成。"
 
       # -------------------------------------------------------------
-      - name: 4. Restart Node.js Service (SSH - 进程管理)
-        # 这一步保持不变，继续使用 appleboy/ssh-action 执行远程命令
+      # 🎯 新增步骤 5：Restart Node.js Service (SSH - 进程管理)
+      - name: 5. Restart Node.js Service
+        # 使用 appleboy/ssh-action 确保远程命令执行，它将使用 ssh-agent 认证
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # 关键：这里不再需要 key: 字段，因为它会使用 ssh-agent 认证
           port: 22
+          script_options: "-o StrictHostKeyChecking=no" # 解决这一步的主机验证问题
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
