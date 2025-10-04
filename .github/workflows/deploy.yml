@@ -58,9 +58,6 @@
 name: Deploy Node.js Project to Serv00
 
 on:
-  # ----------------------------------------
-  # 修正：当代码被推送到 master 分支时触发
-  # ----------------------------------------
   push:
     branches:
       - master 
@@ -74,33 +71,42 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 2. Install dependencies on Runner
-        # 这一步非常关键：在 Runner 上安装依赖，以便一起上传
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm install --production
-
+        - run: npm install --production
+        
       # -------------------------------------------------------------
-      - name: 3. Deploy Code (Rsync - 更可靠的方案)
-        # 使用 rsync-action，它专精于 rsync 传输
-        uses: burnett01/rsync-action@v1.2.0 # 使用一个专用的 rsync Action
+      - name: 3. Deploy Code (使用纯 Rsync 绕开 tar 错误)
+        # ⚠️ 注意：我们使用 appleboy/ssh-action 来执行本地 rsync 命令，
+        # 而不是使用 scp-action。
+        uses: appleboy/ssh-action@v1.0.0
         with:
-          # SSH 密钥和主机信息
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
           
-          # rsync 的源和目标路径
-          path: './' # 传输本地当前目录 (Runner)
-          target: /home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/ # 传送到 Serv00
-          
-          # 常用 rsync 选项：
-          options: -rltDvz
+          # 这个关键步骤在 GitHub Runner (Ubuntu) 上执行 rsync 命令：
+          # rsync -rltDvzP -e "ssh -p 22" ./ /home/USER/app/node-backend-api/
+          # 它会通过 SSH 隧道，将本地文件直接同步到远程 Serv00 服务器。
+          script: |
+            REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
+            
+            echo "-> 正在创建远程目录（如果不存在）..."
+            # 确保目标目录在 Serv00 服务器上存在
+            ssh -p 22 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
+            
+            echo "-> 开始使用 rsync 同步文件..."
+            # 使用 rsync 纯净地同步文件，不会涉及到 scp-action 内部不兼容的 tar 逻辑
+            # -rltDvz 是标准的 rsync 选项，-e "ssh -p 22" 指定了通过哪个端口的 SSH 连接
+            rsync -rltDvz --delete -e "ssh -p 22 -i /home/runner/.ssh/id_rsa" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
+            
+            echo "-> 文件同步完成。"
 
       # -------------------------------------------------------------
       - name: 4. Restart Node.js Service (SSH - 进程管理)
-        # 使用 appleboy/ssh-action 执行启动/重启命令
+        # 这一步保持不变，继续使用 appleboy/ssh-action 执行远程命令
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -114,8 +120,6 @@ jobs:
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
             
-            # 使用 Serv00 推荐的 pm2 重启或启动应用
             echo "-> 重启/启动 Node.js 进程..."
-            # 假设你已经配置了 PM2 启动脚本
             pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name node-backend-api
             echo "-> 部署完成。"
