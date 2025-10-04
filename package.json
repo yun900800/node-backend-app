@@ -1,6 +1,7 @@
 {
   "name": "git-action-test-app",
   "version": "1.0.0",
+  "type": "module",
   "description": "A simple Express app for testing GitHub Actions deployment.",
   "main": "server.js",
   "scripts": {
