@@ -107,25 +107,57 @@ jobs:
           
           echo "-> 文件同步完成。"
 
-      # -------------------------------------------------------------
-      # 🎯 修复步骤 5：Restart Node.js Service
       - name: 5. Restart Node.js Service
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
-          # 🚨 关键修改：将 key 字段加回来，让 appleboy/ssh-action 能够认证
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # ⚠️ 移除无效的 script_options: "-o StrictHostKeyChecking=no"
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
-            
+            APP_NAME="node-backend-api" # 🚨 用作进程标识符
+
             echo "-> 进入项目目录..."
-            # 这一步将通过 appleboy/ssh-action 自己的认证机制连接
             cd ${PROJECT_DIR}
+
+            echo "-> 查找并杀死旧进程..."
             
-            echo "-> 重启/启动 Node.js 进程..."
-            pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name node-backend-api
+            # 1. 使用 'ps aux' 查找进程
+            # 2. 'grep node' 过滤出 Node 进程
+            # 3. 'grep ${APP_NAME}' 再次过滤出您的特定应用进程
+            # 4. 'grep -v grep' 排除掉 grep 命令本身
+            # 5. 'awk '{print $2}' ' 提取进程ID (PID)
+            
+            PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
+            
+            if [ -z "${PID}" ]; then
+                echo "未找到正在运行的旧进程。"
+            else
+                echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
+                # 发送 SIGTERM 信号 (正常终止)
+                kill -15 ${PID}
+                # 等待 5 秒，确保进程有时间关闭
+                sleep 5 
+                
+                # 再次检查进程是否关闭
+                if ps -p ${PID} > /dev/null; then
+                    echo "进程未终止，强制杀死 (SIGKILL)..."
+                    kill -9 ${PID}
+                else
+                    echo "旧进程已安全终止。"
+                fi
+            fi
+
+            echo "-> 启动新的 Node.js 进程..."
+            
+            # 🚨 关键：使用 nohup 和 & 让进程在后台运行
+            # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
+            # ' > /dev/null 2>&1' 将所有输出重定向到空，防止脚本卡住
+            nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
+            
+            # 可选：记录启动的 PID
+            NEW_PID=$!
+            echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
             echo "-> 部署完成。"
