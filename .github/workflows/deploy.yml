@@ -116,5 +116,5 @@ jobs:
             echo "-> 重启/启动 Node.js 进程..."
             # 假设你已经配置了 PM2 启动脚本
             pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name my-api
-            
+            echo "-> 部署完成。"
             echo "-> 部署完成。"
