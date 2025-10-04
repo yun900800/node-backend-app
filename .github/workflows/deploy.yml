@@ -108,21 +108,22 @@ jobs:
           echo "-> 文件同步完成。"
 
       # -------------------------------------------------------------
-      # 🎯 新增步骤 5：Restart Node.js Service (SSH - 进程管理)
+      # 🎯 修复步骤 5：Restart Node.js Service
       - name: 5. Restart Node.js Service
-        # 使用 appleboy/ssh-action 确保远程命令执行，它将使用 ssh-agent 认证
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          # 关键：这里不再需要 key: 字段，因为它会使用 ssh-agent 认证
           port: 22
-          script_options: "-o StrictHostKeyChecking=no" # 解决这一步的主机验证问题
+          # 🚨 关键修改：将 key 字段加回来，让 appleboy/ssh-action 能够认证
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # ⚠️ 移除无效的 script_options: "-o StrictHostKeyChecking=no"
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
             
             echo "-> 进入项目目录..."
+            # 这一步将通过 appleboy/ssh-action 自己的认证机制连接
             cd ${PROJECT_DIR}
             
             echo "-> 重启/启动 Node.js 进程..."
