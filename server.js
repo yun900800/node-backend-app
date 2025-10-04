@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors'; // 导入 cors
 const app = express();
 const PORT = process.env.PORT || 5002; 
-const HOST = '0.0.0.0'; 
+const HOST = '0.0.0.0';  
 
 // 假设你的前端部署在 https://your-frontend-domain.com
 const corsOptions = {
@@ -43,6 +43,7 @@ app.get('/', (req, res) => {
 
 // 如果你想部署后修改版本来测试更新
 app.get('/version', (req, res) => {
+  console.log('Version endpoint was hit');
   res.json({
     version: '1.0.2', // 部署成功后，你可以修改这里来测试更新
     deployedBy: 'GitHub Actions'
