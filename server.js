@@ -5,26 +5,29 @@ const PORT = process.env.PORT || 40050;
 const HOST = '0.0.0.0'; 
 
 // 假设你的前端部署在 https://your-frontend-domain.com
-const allowedOrigins = [
-    'https://auth.webhost.innocation.dpdns.org', // 替换为你实际的前端域名！
-    'https://webhost.innocation.dpdns.org' // 如果前端也部署在这个域名下，也加进来
-];
-
-// 配置 CORS 选项
 const corsOptions = {
   origin: function (origin, callback) {
-    // 允许来自特定域名的请求，或者允许没有 origin 的请求（如Postman、curl、同源请求）
+    const allowedOrigins = [
+      'https://auth.webhost.innocation.dpdns.org',
+      'https://webhost.innocation.dpdns.org',
+      // WARNING: 在生产环境中，不应该允许内部 IP，但为了测试暂时保留
+      'http://192.168.5.228:40050',
+      'http://localhost:5173', // Vite 默认端口
+    ];
+
+    // 允许没有 Origin 头部（如 curl 或 Postman）或在白名单内的请求
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true)
+      callback(null, true); // ✅ 允许
     } else {
-      callback(new Error('Not allowed by CORS'))
+      // ❌ 拒绝：通过返回 false 而不是抛出 Error 来防止进程崩溃
+      // 这会允许 CORS 中间件返回 403 Forbidden 响应
+      callback(null, false); 
     }
   },
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // 允许的 HTTP 方法
-  credentials: true, // 允许发送 Cookie (对应你的 fetch 中的 credentials: 'include')
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
 };
 
-// 将 CORS 中间件应用于你的 API 路由之前
 app.use(cors(corsOptions)); 
 
 
