@@ -77,9 +77,8 @@ jobs:
       - run: npm install --production
         
       # -------------------------------------------------------------
-      - name: 3. Deploy Code (使用纯 Rsync 绕开 tar 错误)
-        # ⚠️ 注意：我们使用 appleboy/ssh-action 来执行本地 rsync 命令，
-        # 而不是使用 scp-action。
+      - name: 3. Deploy Code (使用纯 Rsync 修复认证)
+        # ⚠️ 注意：我们使用 appleboy/ssh-action 来执行本地 rsync 命令
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -87,20 +86,19 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: 22
           
-          # 这个关键步骤在 GitHub Runner (Ubuntu) 上执行 rsync 命令：
-          # rsync -rltDvzP -e "ssh -p 22" ./ /home/USER/app/node-backend-api/
-          # 它会通过 SSH 隧道，将本地文件直接同步到远程 Serv00 服务器。
+          # 核心是确保 ssh-agent 启动
+          
           script: |
             REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
             
             echo "-> 正在创建远程目录（如果不存在）..."
-            # 确保目标目录在 Serv00 服务器上存在
+            # 这一步已经通过 known_hosts 解决
             ssh -p 22 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${REMOTE_DIR}"
             
             echo "-> 开始使用 rsync 同步文件..."
-            # 使用 rsync 纯净地同步文件，不会涉及到 scp-action 内部不兼容的 tar 逻辑
-            # -rltDvz 是标准的 rsync 选项，-e "ssh -p 22" 指定了通过哪个端口的 SSH 连接
-            rsync -rltDvz --delete -e "ssh -p 22 -i /home/runner/.ssh/id_rsa" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
+            # 【关键修复】：移除 "-i /home/runner/.ssh/id_rsa"
+            # 让 rsync 自动使用 ssh-agent 中加载的密钥进行认证
+            rsync -rltDvz --delete -e "ssh -p 22" ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_DIR}
             
             echo "-> 文件同步完成。"
 
