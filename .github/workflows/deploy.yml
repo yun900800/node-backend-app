@@ -1,56 +1,110 @@
-name: Deploy Node.js Project to Webhost
+# name: Deploy Node.js Project to Webhost
 
-on:
-  push:
-    branches:
-      - master # 只有推送到 master 分支时触发
+# on:
+#   push:
+#     branches:
+#       - master # 只有推送到 master 分支时触发
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Deploy via SSH (Code Update Only)
+#         # 使用 appleboy/ssh-action 确保在主机上执行命令
+#         uses: appleboy/ssh-action@v1.0.0
+#         with:
+#           # SSH 连接信息，从 GitHub Secrets 中读取
+#           host: ${{ secrets.DEPLOY_HOST }}
+#           username: ${{ secrets.DEPLOY_USER }}
+#           key: ${{ secrets.DEPLOY_SSH_KEY }}
+#           port: 22
+          
+#           # 部署脚本，注意这里是多行脚本的 YAML 格式
+#           script: |
+#             # =========================================================
+#             # 1. 变量配置 - 请确保这些路径正确！
+#             # =========================================================
+#             NPM_BIN="/opt/alt/alt-nodejs20/root/bin/npm"
+#             NODE_BIN="/opt/alt/alt-nodejs20/root/bin/node"
+#             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app"
+#             MAIN_FILE="server.js"
+            
+#             # =========================================================
+#             # 2. 停止旧进程 (为 Cron Job 启动新代码做准备)
+#             # =========================================================
+#             echo "-> 尝试停止旧的 Node 进程..."
+#             # pkill -f 通过匹配整个命令行参数来终止旧进程
+#             # || true 确保即使没有找到进程也不会报错
+#             /usr/bin/pkill -f "${PROJECT_DIR}/${MAIN_FILE}" || true 
+
+#             # =========================================================
+#             # 3. 更新代码和安装依赖
+#             # =========================================================
+#             echo "-> 进入项目目录..."
+#             cd ${PROJECT_DIR}
+            
+#             echo "-> 拉取最新代码..."
+#             git pull origin master
+            
+#             echo "-> 安装依赖..."
+#             ${NPM_BIN} install --production 
+            
+#             echo "-> 代码部署完成。进程将由 Cron Job 启动/重启。"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH (Code Update Only)
-        # 使用 appleboy/ssh-action 确保在主机上执行命令
-        uses: appleboy/ssh-action@v1.0.0
+      - name: 2. Install dependencies on Runner
+        # 这一步非常关键：在 Runner 上安装依赖，以便一起上传
+        uses: actions/setup-node@v4
         with:
-          # SSH 连接信息，从 GitHub Secrets 中读取
+          node-version: '18'
+      - run: npm install --production
+
+      # -------------------------------------------------------------
+      - name: 3. Deploy Code (SCP/RSYNC - 文件传输)
+        # 使用 appleboy/scp-action 将整个项目（包括 node_modules）上传
+        uses: appleboy/scp-action@v0.1.7 
+        with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: 2323
-          
-          # 部署脚本，注意这里是多行脚本的 YAML 格式
+          port: 22
+          # 核心：将当前目录的所有文件 (*) 传送到目标目录
+          source: './*'  
+          target: /home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/ # 使用你之前确定的精确目标目录
+          overwrite: true
+          # 允许 rsync 模式，可以更高效地同步
+          rsync: true 
+
+      # -------------------------------------------------------------
+      - name: 4. Restart Node.js Service (SSH - 进程管理)
+        # 使用 appleboy/ssh-action 执行启动/重启命令
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
           script: |
-            # =========================================================
-            # 1. 变量配置 - 请确保这些路径正确！
-            # =========================================================
-            NPM_BIN="/opt/alt/alt-nodejs20/root/bin/npm"
-            NODE_BIN="/opt/alt/alt-nodejs20/root/bin/node"
-            PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/node-app/node-backend-app"
+            PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
             
-            # =========================================================
-            # 2. 停止旧进程 (为 Cron Job 启动新代码做准备)
-            # =========================================================
-            echo "-> 尝试停止旧的 Node 进程..."
-            # pkill -f 通过匹配整个命令行参数来终止旧进程
-            # || true 确保即使没有找到进程也不会报错
-            /usr/bin/pkill -f "${PROJECT_DIR}/${MAIN_FILE}" || true 
-
-            # =========================================================
-            # 3. 更新代码和安装依赖
-            # =========================================================
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
             
-            echo "-> 拉取最新代码..."
-            git pull origin master
+            # 使用 Serv00 推荐的 pm2 重启或启动应用
+            echo "-> 重启/启动 Node.js 进程..."
+            # 假设你已经配置了 PM2 启动脚本
+            pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name my-api
             
-            echo "-> 安装依赖..."
-            ${NPM_BIN} install --production 
-            
-            echo "-> 代码部署完成。进程将由 Cron Job 启动/重启。"
+            echo "-> 部署完成。"

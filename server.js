@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors'; // 导入 cors
 const app = express();
-const PORT = process.env.PORT || 40050; 
+const PORT = process.env.PORT || 5002; 
 const HOST = '0.0.0.0'; 
 
 // 假设你的前端部署在 https://your-frontend-domain.com
@@ -11,7 +11,7 @@ const corsOptions = {
       'https://auth.webhost.innocation.dpdns.org',
       'https://webhost.innocation.dpdns.org',
       // WARNING: 在生产环境中，不应该允许内部 IP，但为了测试暂时保留
-      'http://192.168.5.228:40050',
+      'http://192.168.5.228:5002',
       'http://localhost:5173', // Vite 默认端口
     ];
 
