@@ -115,5 +115,5 @@ jobs:
             # 使用 Serv00 推荐的 pm2 重启或启动应用
             echo "-> 重启/启动 Node.js 进程..."
             # 假设你已经配置了 PM2 启动脚本
-            pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name my-api
+            pm2 restart ${MAIN_FILE} || pm2 start ${MAIN_FILE} --name node-api
             echo "-> 部署完成。"
