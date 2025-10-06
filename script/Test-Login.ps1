@@ -3,17 +3,22 @@
 # ----------------------------------------------------------------------
 
 $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+
 # 配置变量
 $BaseUrl = "http://localhost:5002/api"
+$RegisterUrl = "$BaseUrl/auth/register" # 新增注册 URL
 $LoginUrl = "$BaseUrl/auth/login"
 $ProfileUrl = "$BaseUrl/profile"
-$Email = "user@example.com"      # 替换为您的测试邮箱
-$Password = "password123"        # 替换为您的测试密码
+$Email = "testuser_$(Get-Random).@example.com" # 使用随机邮箱确保每次测试都注册新用户
+$Password = "password123" 
+
+# 如果你想使用固定的邮箱，请取消注释下一行，并注释掉上面的随机邮箱行
+# $Email = "fixeduser@example.com" 
 
 # ------------------------------------
-# 步骤 1: 登录并获取 JWT Token
+# 步骤 1: 注册新用户
 # ------------------------------------
-Write-Host ">>> 1. Attempting to log in and retrieve JWT token..." -ForegroundColor Cyan
+Write-Host ">>> 1. Attempting to register new user: $Email..." -ForegroundColor Cyan
 
 # 构建请求体 (JSON格式)
 $Body = @{
@@ -21,6 +26,39 @@ $Body = @{
     password = $Password
 } | ConvertTo-Json
 
+try {
+    # 发送 POST 请求到注册路由
+    $RegisterResponse = Invoke-RestMethod -Uri $RegisterUrl -Method Post -Body $Body -ContentType "application/json" -TimeoutSec 10
+
+    # 检查响应是否成功
+    if ($RegisterResponse.userId) {
+        Write-Host "Registration Successful! User ID: $($RegisterResponse.userId)" -ForegroundColor Green
+    } else {
+        Write-Host "Registration Failed: Unexpected response structure." -ForegroundColor Red
+        Write-Host "Response:" $RegisterResponse
+        # 即使结构异常，也继续尝试登录，以防后端直接返回Token
+    }
+
+} catch {
+    # 捕获 409 Conflict (用户已存在)
+    if ($_.Exception.Response.StatusCode -eq 409) {
+        Write-Host "Registration Warning: User $Email already exists (Status 409). Continuing to login." -ForegroundColor Yellow
+        # 如果用户已存在，则继续执行登录步骤
+    } 
+    # 捕获其他错误
+    elseif ($_.Exception) {
+        Write-Host "Registration Failed! An error occurred during the request." -ForegroundColor Red
+        Write-Host "Error Details: $($_.Exception.Message)"
+        exit 1
+    }
+}
+
+# ------------------------------------
+# 步骤 2: 登录并获取 JWT Token
+# ------------------------------------
+Write-Host "`n>>> 2. Attempting to log in and retrieve JWT token..." -ForegroundColor Cyan
+
+# 请求体沿用步骤 1 的 $Body
 try {
     # 发送 POST 请求到登录路由
     $LoginResponse = Invoke-RestMethod -Uri $LoginUrl -Method Post -Body $Body -ContentType "application/json" -TimeoutSec 10
@@ -43,9 +81,9 @@ try {
 }
 
 # ------------------------------------
-# 步骤 2: 使用 Token 访问受保护的 /api/profile 资源
+# 步骤 3: 使用 Token 访问受保护的 /api/profile 资源
 # ------------------------------------
-Write-Host "`n>>> 2. Accessing protected resource ($ProfileUrl)..." -ForegroundColor Cyan
+Write-Host "`n>>> 3. Accessing protected resource ($ProfileUrl)..." -ForegroundColor Cyan
 
 # 构建包含 JWT Token 的授权头部
 $Headers = @{
@@ -72,9 +110,9 @@ try {
 }
 
 # ------------------------------------
-# 步骤 3: 尝试使用过期/无效 Token 访问 (可选验证)
+# 步骤 4: 尝试使用过期/无效 Token 访问 (可选验证)
 # ------------------------------------
-Write-Host "`n>>> 3. Testing access without a valid token (Expected 401)..." -ForegroundColor Yellow
+Write-Host "`n>>> 4. Testing access without a valid token (Expected 401)..." -ForegroundColor Yellow
 $InvalidHeaders = @{ Authorization = "Bearer THIS.IS.AN.INVALID.TOKEN" }
 try {
     Invoke-RestMethod -Uri $ProfileUrl -Method Get -Headers $InvalidHeaders -TimeoutSec 5
