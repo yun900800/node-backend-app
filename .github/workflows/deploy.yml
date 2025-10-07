@@ -3,98 +3,104 @@ name: Deploy Node.js Project to Serv00
 on:
   push:
     branches:
-      - master
+      - master 
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # 1️⃣ 拉取代码
-      - name: Checkout code
+      - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      # 2️⃣ 设置 SSH Agent
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: 2. Install dependencies on Runner
+        uses: actions/setup-node@v4
         with:
+          node-version: '18'
+      - run: npm install --production
+        
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 3：加载私钥到 ssh-agent
+      # 使用专门的 Action 保证密钥被正确识别和加载
+      - name: 3. Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0 # 这是一个更稳定、专用于 ssh-agent 的 Action
+        with:
+          # 加载您的私钥，没有密语时也适用
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
-
-      # 3️⃣ 打包项目（只打包存在的目录和文件）
-      - name: Create project tarball
+          
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 4：Deploy Code (使用纯 Rsync)
+      - name: 4. Deploy Code & Sync
+        # 使用标准的 run 步骤，它会自动继承 ssh-agent 的配置
         run: |
-          echo "-> 打包项目..."
-          tar czf node-backend-api.tar.gz \
-            package.json package-lock.json server.js \
-            app.js features config middleware shared prisma generateHash.js script || true
-          echo "-> 打包完成."
-
-      # 4️⃣ 上传 tarball 到 FreeBSD 并解压
-      - name: Upload & Extract on FreeBSD
-        run: |
+          REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
-          REMOTE_DIR="/home/${USER}/app/node-backend-api"
+
+          # 统一的 SSH 选项：-o StrictHostKeyChecking=no 解决主机验证失败
           SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
 
-          echo "-> 创建远程目录..."
+          echo "-> 正在创建远程目录（如果不存在）..."
+          # 1. 确保目录存在：ssh 命令将通过 ssh-agent 认证
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
+          
+          echo "-> 开始使用 rsync 同步文件..."
+          # 2. rsync 传输：通过 -e 参数和 ssh-agent 认证
+          rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
+          
+          echo "-> 文件同步完成。"
 
-          echo "-> 上传 tarball..."
-          scp -P 22 node-backend-api.tar.gz ${USER}@${HOST}:${REMOTE_DIR}/
-
-          echo "-> 解压 tarball..."
-          ssh ${SSH_OPTIONS} ${USER}@${HOST} "cd ${REMOTE_DIR} && tar xzf node-backend-api.tar.gz && rm node-backend-api.tar.gz"
-
-      # 5️⃣ 在 FreeBSD 上安装依赖 & 生成 Prisma WASM Client
-      - name: Install dependencies & generate Prisma WASM Client on FreeBSD
-        run: |
-          HOST=${{ secrets.DEPLOY_HOST }}
-          USER=${{ secrets.DEPLOY_USER }}
-          REMOTE_DIR="/home/${USER}/app/node-backend-api"
-          SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
-
-          echo "-> 安装依赖和生成 Prisma Client..."
-          ssh ${SSH_OPTIONS} ${USER}@${HOST} "
-            cd ${REMOTE_DIR}
-            export POSTGRES_PRISMA_URL=${{ secrets.POSTGRES_PRISMA_URL }}
-            export POSTGRES_URL_NON_POOLING=${{ secrets.POSTGRES_URL_NON_POOLING }}
-            export JWT_SECRET=${{ secrets.JWT_SECRET }}
-
-            # 安装生产依赖
-            npm ci --omit=dev
-            export PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
-            # 生成 Prisma WASM Client
-            npx prisma generate --schema=prisma/schema.prisma
-          "
-
-      # 6️⃣ 重启 Node.js 服务
-      - name: Restart Node.js Service on FreeBSD
+      - name: 5. Restart Node.js Service
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: POSTGRES_PRISMA_URL,POSTGRES_URL_NON_POOLING,JWT_SECRET
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
-            APP_NAME="node-backend-api"
-            LOG_FILE="/tmp/${APP_NAME}.log"
+            APP_NAME="node-backend-api" # 🚨 用作进程标识符
 
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
 
-            echo "-> 杀死旧进程..."
+            echo "-> 查找并杀死旧进程..."
+            
+            # 1. 使用 'ps aux' 查找进程
+            # 2. 'grep node' 过滤出 Node 进程
+            # 3. 'grep ${APP_NAME}' 再次过滤出您的特定应用进程
+            # 4. 'grep -v grep' 排除掉 grep 命令本身
+            # 5. 'awk '{print $2}' ' 提取进程ID (PID)
+            
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
-            if [ -n "${PID}" ]; then
-              kill -15 ${PID} || true
-              sleep 5
-              ps -p ${PID} && kill -9 ${PID} || echo "旧进程已终止."
+            
+            if [ -z "${PID}" ]; then
+                echo "未找到正在运行的旧进程。"
+            else
+                echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
+                # 发送 SIGTERM 信号 (正常终止)
+                kill -15 ${PID}
+                # 等待 5 秒，确保进程有时间关闭
+                sleep 5 
+                
+                # 再次检查进程是否关闭
+                if ps -p ${PID} > /dev/null; then
+                    echo "进程未终止，强制杀死 (SIGKILL)..."
+                    kill -9 ${PID}
+                else
+                    echo "旧进程已安全终止。"
+                fi
             fi
 
-            echo "-> 启动新的 Node.js 服务 (使用 Prisma WASM)..."
-            nohup node ${MAIN_FILE} > ${LOG_FILE} 2>&1 &
-
-            echo "-> Node.js 服务已启动. 日志: ${LOG_FILE}"
+            echo "-> 启动新的 Node.js 进程..."
+            
+            # 🚨 关键：使用 nohup 和 & 让进程在后台运行
+            # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
+            # ' > /dev/null 2>&1' 将所有输出重定向到空，防止脚本卡住
+            nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
+            
+            # 可选：记录启动的 PID
+            NEW_PID=$!
+            echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
+            echo "-> 部署完成。"
