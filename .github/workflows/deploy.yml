@@ -24,13 +24,13 @@ jobs:
           npm ci --omit=dev
 
           echo "-> 清理旧的 Prisma Client..."
-          rm -rf node_modules/.prisma
+          rm -rf shared/generated/prisma-client
 
           echo "-> 生成 Prisma WASM Client..."
           npx prisma generate --schema=prisma/schema.prisma
-          
+
           echo "-> 确保 Prisma 文件可读..."
-          chmod -R u+rwX node_modules/.prisma node_modules/@prisma/client
+          chmod -R u+rwX shared/generated/prisma-client node_modules/@prisma/client
 
           echo "-> Prisma Client 生成完成."
         env:
@@ -53,9 +53,9 @@ jobs:
           echo "-> 创建远程目录（如果不存在）..."
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
 
-          echo "-> 同步项目文件 (包含 node_modules 和 Prisma WASM)..."
+          echo "-> 使用 rsync 同步项目..."
           rsync -rltDLvz --chmod=ugo=rwX --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
-            ./node_modules/.prisma ./node_modules/@prisma/client ./ \
+            ./shared/generated/prisma-client ./node_modules/@prisma/client ./ \
             ${USER}@${HOST}:${REMOTE_DIR}
 
           echo "-> 文件同步完成."
