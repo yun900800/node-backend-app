@@ -70,7 +70,6 @@ jobs:
             POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
           script: |
-            # 1. 变量和路径设置
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
             APP_NAME="node-backend-api" 
@@ -81,22 +80,15 @@ jobs:
             echo "-> 重新安装生产依赖..."
             npm install --production 
 
-            # =========================================================
-            # 4. 🚀 关键：应用 Prisma 迁移 (Deployment)
-            # 现在直接使用 npx，依赖 Serv00 的 PATH 配置
-            # =========================================================
             echo "-> 正在应用 Prisma 数据库迁移..."
             npx prisma migrate deploy
             
             echo "-> 查找并杀死旧进程..."
-            # 使用 APP_NAME 标识符查找 PID
+            # 使用 -n 检查 PID 是否非空
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
-            if [ -z "${PID}" ]; then
-                echo "未找到正在运行的旧进程。"
-            else
+            if [ -n "${PID}" ]; then
                 echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
-                # 使用 kill -15 和 -9 确保优雅关闭
                 kill -15 ${PID} || true 
                 sleep 5 
                 
@@ -106,15 +98,17 @@ jobs:
                 else
                     echo "旧进程已安全终止。"
                 fi
+            else
+                echo "未找到正在运行的旧进程。"
             fi
 
             echo "-> 启动新的 Node.js 进程..."
-            # 🚨 关键：将 Vercel 风格的环境变量手动导出，供 'node' 进程使用
+            # 导出环境变量
             export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
             export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
             export JWT_SECRET=$JWT_SECRET
 
-            # 现在直接使用 node 命令
+            # 启动 Node 服务
             nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
             
             NEW_PID=$!
