@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets   = ["native"]  // Node-API 不生成，使用 wasm
+  engineType      = "wasm"
   output   = "../shared/generated/prisma-client"
 }
 
