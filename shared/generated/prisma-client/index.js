@@ -150,7 +150,7 @@ const config = {
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
+    "rootEnvPath": "../../../.env",
     "schemaEnvPath": "../../../.env"
   },
   "relativePath": "../../../prisma",
@@ -169,8 +169,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client-js\"\n  binaryTargets = [\"native\"]\n  output        = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  // 1. 唯一标识符\n  id String @id @default(cuid())\n\n  // 2. 身份验证字段\n  email    String @unique // 用户名通常是邮箱，且必须唯一\n  password String // 存储哈希（hash）后的密码，绝不能存储明文密码！\n\n  // 3. 基本信息\n  username String? @unique // 可选的显示名称\n\n  // 4. 辅助字段\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // 5. 关系字段 (如果需要，可添加其他模型，如 Post, Profile, etc.)\n  // Example: posts Post[]\n}\n",
-  "inlineSchemaHash": "48dd14ad25e2371d2b360d301d137ec0bdbc8536b0a611d1ceda3e41299eadb0",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client-js\"\n  binaryTargets = [\"native\"] // Node-API 不生成二进制，使用 WASM\n  engineType    = \"wasm\"\n  output        = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  id        String   @id @default(cuid())\n  email     String   @unique\n  password  String\n  username  String?  @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n",
+  "inlineSchemaHash": "3d66c76f0542c85c1a4b8e36e0ab1b01066009962e5b3d78c1a1ca0a7774b498",
   "copyEngine": true
 }
 
