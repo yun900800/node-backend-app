@@ -1,4 +1,4 @@
-name: Deploy Node.js Project to Serv00
+name: Deploy Node.js Project to FreeBSD
 
 on:
   push:
@@ -20,24 +20,50 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      # 3️⃣ 同步源代码（不包含 node_modules）
-      - name: Sync code to FreeBSD
+      # 3️⃣ 打包项目源代码（不包含 node_modules）
+      - name: Package project
         run: |
-          REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
+          tar czf node-backend-api.tar.gz \
+            package.json package-lock.json server.js prisma features src config middleware shared
+
+      # 4️⃣ 传输并解压到 FreeBSD
+      - name: Transfer & Extract on FreeBSD
+        run: |
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
-          SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
+          REMOTE_DIR="/home/${USER}/app/node-backend-api"
 
           echo "-> 创建远程目录..."
-          ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
+          ssh -o StrictHostKeyChecking=no -p 22 ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
 
-          echo "-> 同步项目文件（不包含 node_modules）..."
-          rsync -rltDLvz --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
-            package.json package-lock.json server.js prisma features src config middleware shared \
-            ${USER}@${HOST}:${REMOTE_DIR}
+          echo "-> 传输压缩包..."
+          scp -P 22 node-backend-api.tar.gz ${USER}@${HOST}:${REMOTE_DIR}/
 
-      # 4️⃣ 在 FreeBSD 上安装依赖 + 生成 Prisma + 启动 Node.js
-      - name: Install & Deploy on FreeBSD
+          echo "-> 解压项目..."
+          ssh -o StrictHostKeyChecking=no -p 22 ${USER}@${HOST} \
+            "cd ${REMOTE_DIR} && tar xzf node-backend-api.tar.gz && rm node-backend-api.tar.gz"
+
+      # 5️⃣ 安装依赖 & 生成 Prisma WASM Client 在 FreeBSD
+      - name: Install dependencies & Generate Prisma Client
+        run: |
+          HOST=${{ secrets.DEPLOY_HOST }}
+          USER=${{ secrets.DEPLOY_USER }}
+          REMOTE_DIR="/home/${USER}/app/node-backend-api"
+
+          ssh -o StrictHostKeyChecking=no -p 22 ${USER}@${HOST} << 'EOF'
+            set -e
+
+            echo "-> 进入项目目录..."
+            cd ${REMOTE_DIR}
+
+            echo "-> 安装生产依赖..."
+            npm ci --omit=dev
+
+            echo "-> 生成 Prisma WASM Client..."
+            npx prisma generate --schema=prisma/schema.prisma
+
+      # 6️⃣ 重启 Node.js 服务
+      - name: Restart Node.js Service on FreeBSD
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -47,18 +73,12 @@ jobs:
           envs: POSTGRES_PRISMA_URL,POSTGRES_URL_NON_POOLING,JWT_SECRET
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
-            LOG_FILE="/tmp/node-backend-api.log"
             MAIN_FILE="server.js"
             APP_NAME="node-backend-api"
+            LOG_FILE="/tmp/${APP_NAME}.log"
 
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
-
-            echo "-> 安装生产依赖..."
-            npm install --production
-
-            echo "-> 生成 Prisma WASM Client..."
-            npx prisma generate --schema=prisma/schema.prisma
 
             echo "-> 杀死旧进程..."
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
@@ -68,7 +88,7 @@ jobs:
               ps -p ${PID} && kill -9 ${PID} || echo "旧进程已终止."
             fi
 
-            echo "-> 启动 Node.js 服务..."
+            echo "-> 启动新的 Node.js 服务..."
             export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
             export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
             export JWT_SECRET=$JWT_SECRET
