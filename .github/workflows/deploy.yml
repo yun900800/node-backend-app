@@ -17,8 +17,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm install --production
-        
+      - run: |
+          npm install --production
+          npx prisma generate
+        env:
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+
+
       # -------------------------------------------------------------
       # 🎯 新增步骤 3：加载私钥到 ssh-agent
       # 使用专门的 Action 保证密钥被正确识别和加载
@@ -57,6 +62,10 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          env: 
+            POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+            POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+            JWT_SECRET: ${{ secrets.JWT_SECRET }}
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
@@ -94,6 +103,9 @@ jobs:
             fi
 
             echo "-> 启动新的 Node.js 进程..."
+            export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
+            export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
+            export JWT_SECRET=$JWT_SECRET
             
             # 🚨 关键：使用 nohup 和 & 让进程在后台运行
             # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
