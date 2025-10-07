@@ -15,7 +15,6 @@ jobs:
 
       # -------------------------------------------------------------
       # 🎯 关键步骤：部署前进行构建 (如 Webpack) 或 Prisma Generate
-      # 虽然你目前没有 Webpack 脚本，但这是生成 Prisma Client 的关键位置。
       - name: 2. Install dev dependencies and Run Build/Generate
         uses: actions/setup-node@v4
         with:
@@ -76,11 +75,9 @@ jobs:
             MAIN_FILE="server.js"
             APP_NAME="node-backend-api" 
             
-            # 2. 进入项目目录
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
 
-            # 3. 安装依赖（在远程主机上，确保环境正确）
             echo "-> 重新安装生产依赖..."
             npm install --production 
 
@@ -91,8 +88,8 @@ jobs:
             echo "-> 正在应用 Prisma 数据库迁移..."
             npx prisma migrate deploy
             
-            # 5. 查找并杀死旧进程
             echo "-> 查找并杀死旧进程..."
+            # 使用 APP_NAME 标识符查找 PID
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
             if [ -z "${PID}" ]; then
@@ -111,7 +108,6 @@ jobs:
                 fi
             fi
 
-            # 6. 启动新的 Node.js 进程
             echo "-> 启动新的 Node.js 进程..."
             # 🚨 关键：将 Vercel 风格的环境变量手动导出，供 'node' 进程使用
             export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
