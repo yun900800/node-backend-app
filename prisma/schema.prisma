@@ -1,8 +1,8 @@
 generator client {
-  provider     = "prisma-client-js"
-  binaryTargets = ["native"]  // Node-API 不生成二进制，使用 WASM
-  engineType   = "wasm"
-  output       = "../shared/generated/prisma-client"
+  provider      = "prisma-client-js"
+  engineType    = "wasm"          // 使用 WASM 引擎
+  binaryTargets = ["native"]      // Node-API 不生成二进制，使用 wasm
+  output        = "../shared/generated/prisma-client"
 }
 
 datasource db {
