@@ -64,7 +64,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # 🚨 将所有敏感配置作为环境变量传递给 SSH 脚本
+          # 将所有敏感配置作为环境变量传递给 SSH 脚本
           env:
             # 这些是 Prisma 和运行时所需的关键环境变量！
             POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
