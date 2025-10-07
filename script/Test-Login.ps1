@@ -6,6 +6,7 @@ $PSDefaultParameterValues['*:Encoding'] = 'utf8'
 
 # 配置变量
 $BaseUrl = "http://localhost:5002/api"
+# $BaseUrl = "https://bayh.pp.ua/api"
 $RegisterUrl = "$BaseUrl/auth/register" # 新增注册 URL
 $LoginUrl = "$BaseUrl/auth/login"
 $ProfileUrl = "$BaseUrl/profile"
@@ -13,7 +14,8 @@ $Email = "testuser_$(Get-Random).@example.com" # 使用随机邮箱确保每次�
 $Password = "password123" 
 
 # 如果你想使用固定的邮箱，请取消注释下一行，并注释掉上面的随机邮箱行
-# $Email = "fixeduser@example.com" 
+# $Email = "fixeduser@example.com"
+
 
 # ------------------------------------
 # 步骤 1: 注册新用户
