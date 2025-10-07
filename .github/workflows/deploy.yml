@@ -53,14 +53,15 @@ jobs:
           echo "-> 创建远程目录（如果不存在）..."
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
 
-          echo "-> 同步项目文件（排除旧 prisma-client/client）..."
+          echo "-> 同步必要文件..."
           rsync -rltDLvz --chmod=ugo=rwX --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
             shared/generated/prisma-client \
             node_modules/@prisma/client \
             package.json package-lock.json server.js \
             features src config middleware \
-            --exclude prisma-client \
-            --exclude client \
+            --exclude 'prisma-client' \
+            --exclude 'client' \
+            --ignore-errors \
             ${USER}@${HOST}:${REMOTE_DIR}
 
           echo "-> 文件同步完成."
