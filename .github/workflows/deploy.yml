@@ -13,17 +13,21 @@ jobs:
       - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      - name: 2. Install dependencies and generate Prisma Client
+      - name: 2. Install dependencies and generate Prisma Client for Linux
         uses: actions/setup-node@v4
         with:
           node-version: '18'
       - run: |
+          echo "-> 安装依赖..."
           npm ci --omit=dev
-          PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 npx prisma generate
+
+          echo "-> 生成 Prisma Client (Linux 版本)..."
+          # ✅ 指定只生成 debian-openssl-3.0.x 版本
+          npx prisma generate --schema=prisma/schema.prisma
+
+          echo "-> Prisma Client 已生成完成。"
         env:
           POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-      # 👇 这一步之后，Prisma Client 已经生成完毕，
-      # 会在 node_modules/.prisma 和 node_modules/@prisma/client 中
 
       - name: 3. Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -41,7 +45,7 @@ jobs:
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
 
           echo "-> 使用 rsync 同步文件..."
-          # 🚨 注意：不要省略 node_modules，因为其中包含 .prisma 引擎
+          # 🚨 一定要包含 node_modules，因为 .prisma/client 在里面
           rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
 
           echo "-> 文件同步完成。"
