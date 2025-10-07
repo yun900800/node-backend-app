@@ -14,60 +14,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ 安装 Node.js 并生成 Prisma WASM Client
-      - name: Setup Node.js and generate Prisma WASM client
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-      - run: |
-          echo "-> 安装依赖..."
-          npm ci --omit=dev
-
-          echo "-> 清理旧的 Prisma Client..."
-          rm -rf shared/generated/prisma-client
-
-          echo "-> 生成 Prisma WASM Client..."
-          npx prisma generate --schema=prisma/schema.prisma
-
-          echo "-> 确保 Prisma 文件可读..."
-          chmod -R u+rwX shared/generated/prisma-client node_modules/@prisma/client
-
-          echo "-> Prisma Client 生成完成."
-        env:
-          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-
-      # 3️⃣ 设置 SSH Agent
+      # 2️⃣ 设置 SSH Agent
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      # 4️⃣ 同步文件到 FreeBSD
-      - name: Deploy Code & Sync
+      # 3️⃣ 同步源代码（不包含 node_modules）
+      - name: Sync code to FreeBSD
         run: |
           REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
           SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
 
-          echo "-> 创建远程目录（如果不存在）..."
+          echo "-> 创建远程目录..."
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
 
-          echo "-> 同步必要文件..."
-          rsync -rltDLvz --chmod=ugo=rwX --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
-            shared/generated/prisma-client \
-            node_modules/@prisma/client \
-            package.json package-lock.json server.js \
-            features src config middleware \
-            --exclude 'prisma-client' \
-            --exclude 'client' \
-            --ignore-errors \
+          echo "-> 同步项目文件（不包含 node_modules）..."
+          rsync -rltDLvz --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
+            package.json package-lock.json server.js prisma features src config middleware shared \
             ${USER}@${HOST}:${REMOTE_DIR}
 
-          echo "-> 文件同步完成."
-
-      # 5️⃣ 重启 Node.js 服务
-      - name: Restart Node.js Service on FreeBSD
+      # 4️⃣ 在 FreeBSD 上安装依赖 + 生成 Prisma + 启动 Node.js
+      - name: Install & Deploy on FreeBSD
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -77,12 +47,18 @@ jobs:
           envs: POSTGRES_PRISMA_URL,POSTGRES_URL_NON_POOLING,JWT_SECRET
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
+            LOG_FILE="/tmp/node-backend-api.log"
             MAIN_FILE="server.js"
             APP_NAME="node-backend-api"
-            LOG_FILE="/tmp/${APP_NAME}.log"
 
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
+
+            echo "-> 安装生产依赖..."
+            npm install --production
+
+            echo "-> 生成 Prisma WASM Client..."
+            npx prisma generate --schema=prisma/schema.prisma
 
             echo "-> 杀死旧进程..."
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
@@ -92,7 +68,7 @@ jobs:
               ps -p ${PID} && kill -9 ${PID} || echo "旧进程已终止."
             fi
 
-            echo "-> 启动新的 Node.js 服务 (使用 Prisma WASM)..."
+            echo "-> 启动 Node.js 服务..."
             export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
             export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
             export JWT_SECRET=$JWT_SECRET
