@@ -13,49 +13,33 @@ jobs:
       - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      # -------------------------------------------------------------
-      # 🎯 关键步骤：部署前进行构建 (如 Webpack) 或 Prisma Generate
       - name: 2. Install dev dependencies and Run Build/Generate
         uses: actions/setup-node@v4
         with:
           node-version: '18'
       - run: |
-          npm install # 安装所有依赖，包括 devDependencies，用于 Prisma CLI
-          npx prisma generate # 生成 Prisma Client，确保部署代码包含最新 Client
+          npm install
+          npx prisma generate
         env:
-          # 🚨 必须在生成时提供一个有效的 DATABASE URL，即使只是一个假的值，
-          # 以满足 Prisma Generate 的要求。建议使用 TEST/MOCK 变量。
           POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
 
-      # -------------------------------------------------------------
-      # 3. Setup SSH Agent
       - name: 3. Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0 
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           
-      # -------------------------------------------------------------
-      # 4. Deploy Code & Sync
       - name: 4. Deploy Code & Sync (using Rsync)
         run: |
           REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
-
           SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
-
           echo "-> 正在创建远程目录（如果不存在）..."
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
-          
           echo "-> 开始使用 rsync 同步文件..."
-          # 同步 Runner 上已安装的 node_modules 目录（如果需要），
-          # 但更推荐在远程主机上重新运行 npm install。这里只同步代码。
           rsync -rltDvz --exclude 'node_modules' --exclude '.git' -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
-          
           echo "-> 文件同步完成。"
 
-      # -------------------------------------------------------------
-      # 5. Service Control & Prisma Deploy (关键变化)
       - name: 5. Restart Node.js Service & Run Migrations
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -63,9 +47,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # 🚨 将所有敏感配置作为环境变量传递给 SSH 脚本
           env:
-            # 这些是 Prisma 和运行时所需的关键环境变量！
             POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
             POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
@@ -84,7 +66,6 @@ jobs:
             npx prisma migrate deploy
             
             echo "-> 查找并杀死旧进程..."
-            # 使用 -n 检查 PID 是否非空
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
             if [ -n "${PID}" ]; then
@@ -103,12 +84,10 @@ jobs:
             fi
 
             echo "-> 启动新的 Node.js 进程..."
-            # 导出环境变量
             export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
             export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
             export JWT_SECRET=$JWT_SECRET
 
-            # 启动 Node 服务
             nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
             
             NEW_PID=$!
