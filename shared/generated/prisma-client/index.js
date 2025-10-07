@@ -143,6 +143,10 @@ const config = {
         "fromEnvVar": null,
         "value": "windows",
         "native": true
+      },
+      {
+        "fromEnvVar": null,
+        "value": "debian-openssl-3.0.x"
       }
     ],
     "previewFeatures": [],
@@ -169,8 +173,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  // 1. 唯一标识符\n  id String @id @default(cuid())\n\n  // 2. 身份验证字段\n  email    String @unique // 用户名通常是邮箱，且必须唯一\n  password String // 存储哈希（hash）后的密码，绝不能存储明文密码！\n\n  // 3. 基本信息\n  username String? @unique // 可选的显示名称\n\n  // 4. 辅助字段\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // 5. 关系字段 (如果需要，可添加其他模型，如 Post, Profile, etc.)\n  // Example: posts Post[]\n}\n",
-  "inlineSchemaHash": "a3e8d6134bb4891c6c45f4a792ea399dd420292f0f2babc51e5796771e295fc8",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client-js\"\n  binaryTargets = [\"native\", \"debian-openssl-3.0.x\"]\n  output        = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  // 1. 唯一标识符\n  id String @id @default(cuid())\n\n  // 2. 身份验证字段\n  email    String @unique // 用户名通常是邮箱，且必须唯一\n  password String // 存储哈希（hash）后的密码，绝不能存储明文密码！\n\n  // 3. 基本信息\n  username String? @unique // 可选的显示名称\n\n  // 4. 辅助字段\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // 5. 关系字段 (如果需要，可添加其他模型，如 Post, Profile, etc.)\n  // Example: posts Post[]\n}\n",
+  "inlineSchemaHash": "ebf2d584eb90cd4d49ceafcf928bcacadfc22eae8f1f9a6ba825f6d710f4ac59",
   "copyEngine": true
 }
 
@@ -211,6 +215,10 @@ Object.assign(exports, Prisma)
 // file annotations for bundling tools to include these files
 path.join(__dirname, "query_engine-windows.dll.node");
 path.join(process.cwd(), "shared/generated/prisma-client/query_engine-windows.dll.node")
+
+// file annotations for bundling tools to include these files
+path.join(__dirname, "libquery_engine-debian-openssl-3.0.x.so.node");
+path.join(process.cwd(), "shared/generated/prisma-client/libquery_engine-debian-openssl-3.0.x.so.node")
 // file annotations for bundling tools to include these files
 path.join(__dirname, "schema.prisma");
 path.join(process.cwd(), "shared/generated/prisma-client/schema.prisma")
