@@ -168,8 +168,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client-js\"\n  binaryTargets = [\"native\"] // Node-API 不生成二进制，使用 WASM\n  engineType    = \"wasm\"\n  output        = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  id        String   @id @default(cuid())\n  email     String   @unique\n  password  String\n  username  String?  @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n",
-  "inlineSchemaHash": "3d66c76f0542c85c1a4b8e36e0ab1b01066009962e5b3d78c1a1ca0a7774b498",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../shared/generated/prisma-client\"\n}\n\ndatasource db {\n  provider     = \"postgres\"\n  url          = env(\"POSTGRES_PRISMA_URL\")\n  directUrl    = env(\"POSTGRES_URL_NON_POOLING\")\n  relationMode = \"prisma\"\n}\n\nmodel User {\n  id        String   @id @default(cuid())\n  email     String   @unique\n  password  String\n  username  String?  @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n}\n",
+  "inlineSchemaHash": "7acbaa1839c4f792a69b77ad5de278fc9b75bac4b52eeb2abbba1c58c273d221",
   "copyEngine": true
 }
 config.dirname = '/'
