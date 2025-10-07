@@ -63,7 +63,7 @@ jobs:
 
             # 安装生产依赖
             npm ci --omit=dev
-
+            export PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
             # 生成 Prisma WASM Client
             npx prisma generate --schema=prisma/schema.prisma
           "
