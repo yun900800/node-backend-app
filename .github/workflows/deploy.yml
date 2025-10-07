@@ -13,83 +13,94 @@ jobs:
       - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      - name: 2. Install dev dependencies and Run Build/Generate
+      - name: 2. Install dependencies on Runner
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: |
-          npm install
-          npx prisma generate
-        env:
-          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-
+      - run: npm install --production
+        
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 3：加载私钥到 ssh-agent
+      # 使用专门的 Action 保证密钥被正确识别和加载
       - name: 3. Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0 
+        uses: webfactory/ssh-agent@v0.9.0 # 这是一个更稳定、专用于 ssh-agent 的 Action
         with:
+          # 加载您的私钥，没有密语时也适用
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           
-      - name: 4. Deploy Code & Sync (using Rsync)
+      # -------------------------------------------------------------
+      # 🎯 新增步骤 4：Deploy Code (使用纯 Rsync)
+      - name: 4. Deploy Code & Sync
+        # 使用标准的 run 步骤，它会自动继承 ssh-agent 的配置
         run: |
           REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
+
+          # 统一的 SSH 选项：-o StrictHostKeyChecking=no 解决主机验证失败
           SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
+
           echo "-> 正在创建远程目录（如果不存在）..."
+          # 1. 确保目录存在：ssh 命令将通过 ssh-agent 认证
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
+          
           echo "-> 开始使用 rsync 同步文件..."
-          rsync -rltDvz --exclude 'node_modules' --exclude '.git' -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
+          # 2. rsync 传输：通过 -e 参数和 ssh-agent 认证
+          rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
+          
           echo "-> 文件同步完成。"
 
-      - name: 5. Restart Node.js Service & Run Migrations
+      - name: 5. Restart Node.js Service
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          env:
-            POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-            POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
-            JWT_SECRET: ${{ secrets.JWT_SECRET }}
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
-            APP_NAME="node-backend-api" 
-            
+            APP_NAME="node-backend-api" # 🚨 用作进程标识符
+
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
 
-            echo "-> 重新安装生产依赖..."
-            npm install --production 
-
-            echo "-> 正在应用 Prisma 数据库迁移..."
-            npx prisma migrate deploy
-            
             echo "-> 查找并杀死旧进程..."
+            
+            # 1. 使用 'ps aux' 查找进程
+            # 2. 'grep node' 过滤出 Node 进程
+            # 3. 'grep ${APP_NAME}' 再次过滤出您的特定应用进程
+            # 4. 'grep -v grep' 排除掉 grep 命令本身
+            # 5. 'awk '{print $2}' ' 提取进程ID (PID)
+            
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
-            if [ -n "${PID}" ]; then
+            if [ -z "${PID}" ]; then
+                echo "未找到正在运行的旧进程。"
+            else
                 echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
-                kill -15 ${PID} || true 
+                # 发送 SIGTERM 信号 (正常终止)
+                kill -15 ${PID}
+                # 等待 5 秒，确保进程有时间关闭
                 sleep 5 
                 
+                # 再次检查进程是否关闭
                 if ps -p ${PID} > /dev/null; then
                     echo "进程未终止，强制杀死 (SIGKILL)..."
                     kill -9 ${PID}
                 else
                     echo "旧进程已安全终止。"
                 fi
-            else
-                echo "未找到正在运行的旧进程。"
             fi
 
             echo "-> 启动新的 Node.js 进程..."
-            export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
-            export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
-            export JWT_SECRET=$JWT_SECRET
-
+            
+            # 🚨 关键：使用 nohup 和 & 让进程在后台运行
+            # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
+            # ' > /dev/null 2>&1' 将所有输出重定向到空，防止脚本卡住
             nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
             
+            # 可选：记录启动的 PID
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
             echo "-> 部署完成。"
