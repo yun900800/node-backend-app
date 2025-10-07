@@ -107,9 +107,9 @@ jobs:
             # 🚨 关键：使用 nohup 和 & 让进程在后台运行
             # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
             # ' > /dev/null 2>&1' 将所有输出重定向到空，防止脚本卡住
-            nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
-            
-            # 可选：记录启动的 PID
+            LOG_FILE="/tmp/${APP_NAME}.log" 
+            nohup node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
+
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
-            echo "-> 部署完成。"
+            echo "-> 检查日志文件 ${LOG_FILE} 获取启动详情和错误。" # 提醒你查看日志
