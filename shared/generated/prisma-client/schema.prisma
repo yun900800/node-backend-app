@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../shared/generated/prisma-client"
+}
+
+datasource db {
+  provider     = "postgres"
+  url          = env("POSTGRES_PRISMA_URL")
+  directUrl    = env("POSTGRES_URL_NON_POOLING")
+  relationMode = "prisma"
+}
+
+model User {
+  // 1. 唯一标识符
+  id String @id @default(cuid())
+
+  // 2. 身份验证字段
+  email    String @unique // 用户名通常是邮箱，且必须唯一
+  password String // 存储哈希（hash）后的密码，绝不能存储明文密码！
+
+  // 3. 基本信息
+  username String? @unique // 可选的显示名称
+
+  // 4. 辅助字段
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 5. 关系字段 (如果需要，可添加其他模型，如 Post, Profile, etc.)
+  // Example: posts Post[]
+}

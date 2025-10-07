@@ -1,60 +1,3 @@
-# name: Deploy Node.js Project to Webhost
-
-# on:
-#   push:
-#     branches:
-#       - master # 只有推送到 master 分支时触发
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-    
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
-
-#       - name: Deploy via SSH (Code Update Only)
-#         # 使用 appleboy/ssh-action 确保在主机上执行命令
-#         uses: appleboy/ssh-action@v1.0.0
-#         with:
-#           # SSH 连接信息，从 GitHub Secrets 中读取
-#           host: ${{ secrets.DEPLOY_HOST }}
-#           username: ${{ secrets.DEPLOY_USER }}
-#           key: ${{ secrets.DEPLOY_SSH_KEY }}
-#           port: 22
-          
-#           # 部署脚本，注意这里是多行脚本的 YAML 格式
-#           script: |
-#             # =========================================================
-#             # 1. 变量配置 - 请确保这些路径正确！
-#             # =========================================================
-#             NPM_BIN="/opt/alt/alt-nodejs20/root/bin/npm"
-#             NODE_BIN="/opt/alt/alt-nodejs20/root/bin/node"
-#             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app"
-#             MAIN_FILE="server.js"
-            
-#             # =========================================================
-#             # 2. 停止旧进程 (为 Cron Job 启动新代码做准备)
-#             # =========================================================
-#             echo "-> 尝试停止旧的 Node 进程..."
-#             # pkill -f 通过匹配整个命令行参数来终止旧进程
-#             # || true 确保即使没有找到进程也不会报错
-#             /usr/bin/pkill -f "${PROJECT_DIR}/${MAIN_FILE}" || true 
-
-#             # =========================================================
-#             # 3. 更新代码和安装依赖
-#             # =========================================================
-#             echo "-> 进入项目目录..."
-#             cd ${PROJECT_DIR}
-            
-#             echo "-> 拉取最新代码..."
-#             git pull origin master
-            
-#             echo "-> 安装依赖..."
-#             ${NPM_BIN} install --production 
-            
-#             echo "-> 代码部署完成。进程将由 Cron Job 启动/重启。"
-
 name: Deploy Node.js Project to Serv00
 
 on:
@@ -70,78 +13,96 @@ jobs:
       - name: 1. Checkout code on Runner
         uses: actions/checkout@v4
 
-      - name: 2. Install dependencies on Runner
+      # -------------------------------------------------------------
+      # 🎯 关键步骤：部署前进行构建 (如 Webpack) 或 Prisma Generate
+      # 虽然你目前没有 Webpack 脚本，但这是生成 Prisma Client 的关键位置。
+      - name: 2. Install dev dependencies and Run Build/Generate
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - run: npm install --production
-        
+      - run: |
+          npm install # 安装所有依赖，包括 devDependencies，用于 Prisma CLI
+          npx prisma generate # 生成 Prisma Client，确保部署代码包含最新 Client
+        env:
+          # 🚨 必须在生成时提供一个有效的 DATABASE URL，即使只是一个假的值，
+          # 以满足 Prisma Generate 的要求。建议使用 TEST/MOCK 变量。
+          POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+
       # -------------------------------------------------------------
-      # 🎯 新增步骤 3：加载私钥到 ssh-agent
-      # 使用专门的 Action 保证密钥被正确识别和加载
+      # 3. Setup SSH Agent
       - name: 3. Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0 # 这是一个更稳定、专用于 ssh-agent 的 Action
+        uses: webfactory/ssh-agent@v0.9.0 
         with:
-          # 加载您的私钥，没有密语时也适用
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           
       # -------------------------------------------------------------
-      # 🎯 新增步骤 4：Deploy Code (使用纯 Rsync)
-      - name: 4. Deploy Code & Sync
-        # 使用标准的 run 步骤，它会自动继承 ssh-agent 的配置
+      # 4. Deploy Code & Sync
+      - name: 4. Deploy Code & Sync (using Rsync)
         run: |
           REMOTE_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api/"
           HOST=${{ secrets.DEPLOY_HOST }}
           USER=${{ secrets.DEPLOY_USER }}
 
-          # 统一的 SSH 选项：-o StrictHostKeyChecking=no 解决主机验证失败
           SSH_OPTIONS="-o StrictHostKeyChecking=no -p 22"
 
           echo "-> 正在创建远程目录（如果不存在）..."
-          # 1. 确保目录存在：ssh 命令将通过 ssh-agent 认证
           ssh ${SSH_OPTIONS} ${USER}@${HOST} "mkdir -p ${REMOTE_DIR}"
           
           echo "-> 开始使用 rsync 同步文件..."
-          # 2. rsync 传输：通过 -e 参数和 ssh-agent 认证
-          rsync -rltDvz --delete -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
+          # 同步 Runner 上已安装的 node_modules 目录（如果需要），
+          # 但更推荐在远程主机上重新运行 npm install。这里只同步代码。
+          rsync -rltDvz --exclude 'node_modules' --exclude '.git' -e "ssh ${SSH_OPTIONS}" ./ ${USER}@${HOST}:${REMOTE_DIR}
           
           echo "-> 文件同步完成。"
 
-      - name: 5. Restart Node.js Service
+      # -------------------------------------------------------------
+      # 5. Service Control & Prisma Deploy (关键变化)
+      - name: 5. Restart Node.js Service & Run Migrations
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # 🚨 将所有敏感配置作为环境变量传递给 SSH 脚本
+          env:
+            # 这些是 Prisma 和运行时所需的关键环境变量！
+            POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
+            POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+            JWT_SECRET: ${{ secrets.JWT_SECRET }}
           script: |
+            # 1. 变量和路径设置
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
-            APP_NAME="node-backend-api" # 🚨 用作进程标识符
-
+            APP_NAME="node-backend-api" 
+            
+            # 2. 进入项目目录
             echo "-> 进入项目目录..."
             cd ${PROJECT_DIR}
 
+            # 3. 安装依赖（在远程主机上，确保环境正确）
+            echo "-> 重新安装生产依赖..."
+            npm install --production 
+
+            # =========================================================
+            # 4. 🚀 关键：应用 Prisma 迁移 (Deployment)
+            # 现在直接使用 npx，依赖 Serv00 的 PATH 配置
+            # =========================================================
+            echo "-> 正在应用 Prisma 数据库迁移..."
+            npx prisma migrate deploy
+            
+            # 5. 查找并杀死旧进程
             echo "-> 查找并杀死旧进程..."
-            
-            # 1. 使用 'ps aux' 查找进程
-            # 2. 'grep node' 过滤出 Node 进程
-            # 3. 'grep ${APP_NAME}' 再次过滤出您的特定应用进程
-            # 4. 'grep -v grep' 排除掉 grep 命令本身
-            # 5. 'awk '{print $2}' ' 提取进程ID (PID)
-            
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
             if [ -z "${PID}" ]; then
                 echo "未找到正在运行的旧进程。"
             else
                 echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
-                # 发送 SIGTERM 信号 (正常终止)
-                kill -15 ${PID}
-                # 等待 5 秒，确保进程有时间关闭
+                # 使用 kill -15 和 -9 确保优雅关闭
+                kill -15 ${PID} || true # 使用 || true 避免进程不存在时脚本失败
                 sleep 5 
                 
-                # 再次检查进程是否关闭
                 if ps -p ${PID} > /dev/null; then
                     echo "进程未终止，强制杀死 (SIGKILL)..."
                     kill -9 ${PID}
@@ -150,14 +111,16 @@ jobs:
                 fi
             fi
 
+            # 6. 启动新的 Node.js 进程
             echo "-> 启动新的 Node.js 进程..."
-            
-            # 🚨 关键：使用 nohup 和 & 让进程在后台运行
-            # 使用 screen 启动是一个更可靠的方案，但直接使用 nohup 确保简单
-            # ' > /dev/null 2>&1' 将所有输出重定向到空，防止脚本卡住
+            # 🚨 关键：将 Vercel 风格的环境变量手动导出，供 'node' 进程使用
+            export POSTGRES_PRISMA_URL=$POSTGRES_PRISMA_URL
+            export POSTGRES_URL_NON_POOLING=$POSTGRES_URL_NON_POOLING
+            export JWT_SECRET=$JWT_SECRET
+
+            # 现在直接使用 node 命令
             nohup node ${MAIN_FILE} --name ${APP_NAME} > /dev/null 2>&1 &
             
-            # 可选：记录启动的 PID
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
             echo "-> 部署完成。"
