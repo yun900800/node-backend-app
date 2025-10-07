@@ -62,10 +62,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          env: 
-            POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
-            POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
-            JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          envs: POSTGRES_PRISMA_URL,POSTGRES_URL_NON_POOLING,JWT_SECRET
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
