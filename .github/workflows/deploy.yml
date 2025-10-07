@@ -64,7 +64,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           port: 22
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # 将所有敏感配置作为环境变量传递给 SSH 脚本
+          # 🚨 将所有敏感配置作为环境变量传递给 SSH 脚本
           env:
             # 这些是 Prisma 和运行时所需的关键环境变量！
             POSTGRES_PRISMA_URL: ${{ secrets.POSTGRES_PRISMA_URL }}
@@ -100,7 +100,7 @@ jobs:
             else
                 echo "找到旧进程 PID: ${PID}，正在发送 SIGTERM 信号..."
                 # 使用 kill -15 和 -9 确保优雅关闭
-                kill -15 ${PID} || true # 使用 || true 避免进程不存在时脚本失败
+                kill -15 ${PID} || true 
                 sleep 5 
                 
                 if ps -p ${PID} > /dev/null; then
