@@ -1,5 +1,5 @@
 // 导入你的 Prisma 客户端实例
-import { prisma } from '../../shared/prisma/index.js'; // 假设你的 prisma 实例文件路径是 ../../db/prisma.js
+// import { prisma } from '../../shared/prisma/index.js'; // 假设你的 prisma 实例文件路径是 ../../db/prisma.js
 
 import { postgres as db, pgp } from '../../shared/db/index.js';
 /**
