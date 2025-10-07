@@ -5,8 +5,8 @@
 $PSDefaultParameterValues['*:Encoding'] = 'utf8'
 
 # 配置变量
-$BaseUrl = "http://localhost:5002/api"
-# $BaseUrl = "https://bayh.pp.ua/api"
+# $BaseUrl = "http://localhost:5002/api"
+$BaseUrl = "https://bayh.pp.ua/api"
 $RegisterUrl = "$BaseUrl/auth/register" # 新增注册 URL
 $LoginUrl = "$BaseUrl/auth/login"
 $ProfileUrl = "$BaseUrl/profile"
