@@ -55,8 +55,10 @@ jobs:
 
           echo "-> 同步项目文件..."
           rsync -rltDLvz --chmod=ugo=rwX --delete -v --progress -e "ssh ${SSH_OPTIONS}" \
-            ./shared/generated/prisma-client ./node_modules/@prisma/client ./package.json ./server.js ./src \
-            ${USER}@${HOST}:${REMOTE_DIR}
+          shared/generated/prisma-client \
+          node_modules/@prisma/client \
+          package.json package-lock.json server.js features src config middleware \
+          ${USER}@${HOST}:${REMOTE_DIR}
 
           echo "-> 文件同步完成."
 
