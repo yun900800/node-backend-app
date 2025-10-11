@@ -18,9 +18,11 @@ const createClientRecord = async ({ name, secret, redirectUris, grants, ownerId 
 
 // --- 分页查询 ---
 async function getClientsByPage(page, pageSize, userId) {
+    console.log('Fetching clients for userId:', userId, 'page:', page, 'pageSize:', pageSize);
     const pageInt = parseInt(page, 10) || 1;
     const pageSizeInt = parseInt(pageSize, 10) || 10;
     const offset = (pageInt - 1) * pageSizeInt;
+    console.log('Calculated offset:', offset, 'pageSizeInt:', pageSizeInt, 'pageInt:', pageInt);
 
     // 1. 定义 SQL 的 WHERE 条件和参数对象
     //    这里假设 Client 表中有一个字段名为 'createdByUserId' 来关联用户
