@@ -17,22 +17,40 @@ const createClientRecord = async ({ name, secret, redirectUris, grants, ownerId 
 };
 
 // --- 分页查询 ---
-async function getClientsByPage(page, pageSize) {
+async function getClientsByPage(page, pageSize, userId) {
     const pageInt = parseInt(page, 10) || 1;
     const pageSizeInt = parseInt(pageSize, 10) || 10;
     const offset = (pageInt - 1) * pageSizeInt;
 
-    try {
-        // 1. 查询总数
-        const totalCount = await db.one('SELECT count(*) FROM "Client"', [], c => +c.count);
+    // 1. 定义 SQL 的 WHERE 条件和参数对象
+    //    这里假设 Client 表中有一个字段名为 'createdByUserId' 来关联用户
+    let whereCondition = '';
+    const queryParams = { pageSizeInt, offset };
 
-        // 2. 查询分页数据
+    // 只有当 userId 存在时，才添加 WHERE 条件
+    if (userId) {
+        whereCondition = 'WHERE "owner_id" = $<userId>';
+        queryParams.userId = userId;
+    }
+
+    try {
+        // 1. 查询总数 (COUNT)
+        //    * 关键：在 COUNT 查询中应用 WHERE 条件
+        const totalCount = await db.one(`
+            SELECT count(*)
+            FROM "Client"
+            ${whereCondition}
+        `, queryParams, c => +c.count);
+
+        // 2. 查询分页数据 (SELECT)
+        //    * 关键：在 SELECT 查询中应用 WHERE 条件
         const clients = await db.manyOrNone(`
             SELECT *
             FROM "Client"
-            ORDER BY id
+            ${whereCondition}
+            ORDER BY id DESC  -- 最好用 DESC 排序，新的记录靠前
             LIMIT $<pageSizeInt> OFFSET $<offset>
-        `, { pageSizeInt, offset });
+        `, queryParams);
 
         const totalPages = Math.ceil(totalCount / pageSizeInt);
 

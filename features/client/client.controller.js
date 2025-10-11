@@ -46,7 +46,8 @@ const createClient = async (req, res) => {
 // clientPages, deleteClient, updateClient 的逻辑保持不变，因为它们只调用仓库函数
 const clientPages = async (req,res) => {
     const {page, pageSize} = req.query;
-    const pageData = await getClientsByPage(page,pageSize);
+    const userId = req.user ? req.user.userId : null; 
+    const pageData = await getClientsByPage(page,pageSize,userId);
     res.json(pageData);
 }
 
