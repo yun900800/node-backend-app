@@ -17,7 +17,7 @@ const protect = (req, res, next) => {
   try {
     // 验证 Token
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; 
+    req.user = decoded;
     next();
   } catch (ex) {
     res.status(401).json({ message: 'Invalid or expired token.' });

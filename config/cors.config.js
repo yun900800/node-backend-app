@@ -8,6 +8,7 @@ const allowedOrigins = [
   // 生产环境请移除内部 IP 和 localhost，只保留生产域名
   'http://192.168.5.228:5002',
   'http://localhost:5173', // Vite 默认端口
+  "http://localhost:4173", // React SSR 前端默认端口
 ];
 
 export const corsOptions = {
