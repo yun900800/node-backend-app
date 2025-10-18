@@ -89,10 +89,8 @@ jobs:
 
             echo "-> 启动新的 Node.js 进程，并将日志写入 ${LOG_FILE}..."
             
-            # 【✨ 关键修复】：
-            # 1. 添加 NODE_ENV=production 以确保限流和性能正确。
-            # 2. 保留 --name ${APP_NAME} 以确保旧的进程查找逻辑能够找到并杀死当前进程。
-            nohup NODE_ENV=production node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
+            # 【✨ 关键修复】：使用 sh -c "..." 包装整个命令，确保 NODE_ENV 被正确解析为环境变量赋值，而不是命令本身。
+            nohup sh -c "NODE_ENV=production node ${MAIN_FILE} --name ${APP_NAME}" > ${LOG_FILE} 2>&1 &
             
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
