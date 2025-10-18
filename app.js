@@ -8,6 +8,7 @@ import protect from './middleware/protect.middleware.js'; // 导入保护中间�
 import { corsOptions } from './config/cors.config.js'; // 导入 CORS 配置
 
 const app = express();
+app.set('trust proxy', true);
 
 app.use(express.json()); // 解析 JSON body
 app.use(cors(corsOptions)); // 使用 CORS 中间件

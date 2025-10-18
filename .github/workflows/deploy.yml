@@ -90,7 +90,7 @@ jobs:
             echo "-> 启动新的 Node.js 进程，并将日志写入 ${LOG_FILE}..."
             
             # 使用 nohup 和 & 让进程在后台运行，并将所有输出写入日志文件
-            nohup node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
+            nohup NODE_ENV=production node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
             
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"

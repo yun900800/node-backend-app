@@ -9,6 +9,7 @@ const allowedOrigins = [
   'http://192.168.5.228:5002',
   'http://localhost:5173', // Vite 默认端口
   "http://localhost:4173", // React SSR 前端默认端口
+  "http://192.168.5.228:5173", // React SSR 前端默认端口
 ];
 
 export const corsOptions = {
