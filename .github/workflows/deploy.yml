@@ -69,6 +69,7 @@ jobs:
 
             echo "-> 查找并杀死旧进程..."
             
+            # 查找逻辑保持不变（依赖于 --name 参数）
             PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
             if [ -z "${PID}" ]; then
@@ -86,11 +87,12 @@ jobs:
                 fi
             fi
 
-            # 【✅ 关键修改】：将日志输出重定向到 ${LOG_FILE}
             echo "-> 启动新的 Node.js 进程，并将日志写入 ${LOG_FILE}..."
             
-            # 使用 nohup 和 & 让进程在后台运行，并将所有输出写入日志文件
-            nohup node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
+            # 【✨ 关键修复】：
+            # 1. 添加 NODE_ENV=production 以确保限流和性能正确。
+            # 2. 保留 --name ${APP_NAME} 以确保旧的进程查找逻辑能够找到并杀死当前进程。
+            nohup NODE_ENV=production node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
             
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
