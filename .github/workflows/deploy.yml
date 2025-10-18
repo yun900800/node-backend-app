@@ -52,12 +52,16 @@ jobs:
       - name: 5. Restart Node.js Service
         uses: appleboy/ssh-action@v1.0.0
         with:
-          # ... (省略 host/username/port/key)
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: 22
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             PROJECT_DIR="/home/${{ secrets.DEPLOY_USER }}/app/node-backend-api"
             MAIN_FILE="server.js"
             APP_NAME="node-backend-api" 
             
+            # 【✅ 关键修改】：定义日志文件路径，存放在项目根目录
             LOG_FILE="${PROJECT_DIR}/app.log" 
 
             echo "-> 进入项目目录..."
@@ -65,8 +69,7 @@ jobs:
 
             echo "-> 查找并杀死旧进程..."
             
-            # 【✅ 查找逻辑修改】：基于项目目录精确匹配
-            PID=$(ps aux | grep "node" | grep "${PROJECT_DIR}" | grep -v grep | awk '{print $2}')
+            PID=$(ps aux | grep node | grep ${APP_NAME} | grep -v grep | awk '{print $2}')
             
             if [ -z "${PID}" ]; then
                 echo "未找到正在运行的旧进程。"
@@ -83,10 +86,11 @@ jobs:
                 fi
             fi
 
-            echo "-> 启动新的 Node.js 进程，并设置生产环境..."
+            # 【✅ 关键修改】：将日志输出重定向到 ${LOG_FILE}
+            echo "-> 启动新的 Node.js 进程，并将日志写入 ${LOG_FILE}..."
             
-            # 【✅ 启动命令修改】：添加 NODE_ENV=production 并移除 --name
-            nohup NODE_ENV=production node ${MAIN_FILE} > ${LOG_FILE} 2>&1 &
+            # 使用 nohup 和 & 让进程在后台运行，并将所有输出写入日志文件
+            nohup node ${MAIN_FILE} --name ${APP_NAME} > ${LOG_FILE} 2>&1 &
             
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
