@@ -1,9 +1,8 @@
 export const remoteVercelPoolConfig = {
-  host: 'aws-0-us-east-1.pooler.supabase.com',
-  user: 'postgres.nwnbmhmprhkcknzaqvvm',
-  password: 'iagua2RC0sUuWZwK',
-  database: 'postgres',
-  port: 6543
+  host: process.env.DB_HOST || 'aws-0-us-east-1.pooler.supabase.com',
+  user: process.env.DB_USER || 'postgres.nwnbmhmprhkcknzaqvvm',
+  password: process.env.DB_PASSWORD || 'iagua2RC0sUuWZwK',
+  port: process.env.DB_PORT || 6543
 }
 
 

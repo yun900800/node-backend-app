@@ -3,6 +3,7 @@
 import express from 'express';
 import cors from 'cors'; // 导入 cors
 import authRoutes from './features/auth/auth.routes.js'; // 导入认证模块路由
+import aiRouter from './features/ai/ai.router.js'; // 导入 AI 模块路由
 import clientRoutes from './features/client/client.routes.js'; // 导入客户端模块路由
 import protect from './middleware/protect.middleware.js'; // 导入保护中间件
 import { corsOptions } from './config/cors.config.js'; // 导入 CORS 配置
@@ -33,6 +34,9 @@ app.use('/api/auth', authRoutes);
 
 // 2. 客户端模块路由 (受保护)
 app.use('/api/client', protect, clientRoutes);
+
+// 4. AI 模块路由 (受保护)
+app.use('/api/ai', protect, aiRouter); // AI 模块路由 (受保护)
 
 // 3. 受保护的路由示例
 app.get('/api/profile', protect, (req, res) => {
