@@ -98,15 +98,15 @@ jobs:
             # 【✨ 关键修复】：使用 sh -c "..." 包装整个命令，确保 NODE_ENV 被正确解析为环境变量赋值，而不是命令本身。
             # nohup sh -c "NODE_ENV=production node ${MAIN_FILE} --name ${APP_NAME}" > ${LOG_FILE} 2>&1 &
             nohup sh -c "
-              NODE_ENV=production \
-              OPENROUTER_API_KEY='${{ secrets.OPENROUTER_API_KEY }}' \
-              DB_HOST='${{ secrets.DB_HOST }}' \
-              DB_USER='${{ secrets.DB_USER }}' \
-              DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
-              DB_PORT='${{ secrets.DB_PORT }}' \
-              DB_DATABASE='${{ secrets.DB_DATABASE }}' \
-              node ${MAIN_FILE} --name ${APP_NAME}
-            " > ${LOG_FILE} 2>&1 &
+                NODE_ENV=production \
+                OPENROUTER_API_KEY='${{ secrets.OPENROUTER_API_KEY }}' \
+                DB_HOST='${{ secrets.DB_HOST }}' \
+                DB_USER='${{ secrets.DB_USER }}' \
+                DB_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+                DB_PORT='${{ secrets.DB_PORT }}' \
+                DB_DATABASE='${{ secrets.DB_DATABASE }}' \
+                node ${MAIN_FILE} --name ${APP_NAME}
+              " > ${LOG_FILE} 2>&1 &
             NEW_PID=$!
             echo "-> Node.js 服务已启动，新的 PID: ${NEW_PID}"
             echo "-> 日志文件路径: ${LOG_FILE}"
