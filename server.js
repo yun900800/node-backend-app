@@ -9,7 +9,9 @@ if (!JWT_SECRET || JWT_SECRET === 'YOUR_SUPER_SECRET_KEY') {
     console.warn("🚨 WARNING: JWT_SECRET is not set in environment variables! Using default key.");
 }
 
+
 app.listen(PORT, HOST, () => {
+    console.log(`🌍 Server is running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
     console.log(`Server is running in ${process.env.NODE_ENV || 'development'} mode.`);
     console.log(`🚀 Access API at: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
 });
