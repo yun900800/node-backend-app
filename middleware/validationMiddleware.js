@@ -14,6 +14,7 @@ export const validationMiddleware = (schema, source = 'body') => {
         // 2. 使用 Joi 进行验证
         // abortEarly: false 表示返回所有错误，而不是第一个
         const { error, value } = schema.validate(dataToValidate, { abortEarly: false });
+        console.log('error',error);
 
         if (error) {
             // 3. 验证失败：构造清晰的错误信息

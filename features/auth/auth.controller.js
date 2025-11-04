@@ -26,6 +26,7 @@ export const login = async (req, res) => {
  * 处理用户注册，创建新用户账号
  */
 export const register = async (req, res) => {
+    console.log('register');
     const { email, password, username } = req.body; // 注意：这里可能需要从请求中获取 username
 
     try {
