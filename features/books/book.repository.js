@@ -59,15 +59,42 @@ export const findBookById = (id) => {
  */
 export const findBooksPaginated = async (page = 1, limit = 10) => {
   const offset = (page - 1) * limit;
+
   const sql = `
-    SELECT id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
-    FROM "Book" 
-    ORDER BY "created_at" DESC
+    SELECT 
+      b.id,
+      b.title,
+      b.author,
+      b.description,
+      b.cover_url,
+      b.back_cover_url,
+      b.font_color,
+      b.preface,
+      b.front_cover_back_text,
+      b.created_at,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', r.id,
+            'reviewer', r.reviewer,
+            'chapter_title', r.chapter_title,
+            'content', r.content,
+            'created_at', r.created_at
+          )
+        ) FILTER (WHERE r.id IS NOT NULL),
+        '[]'
+      ) AS reviews
+    FROM "Book" b
+    LEFT JOIN "BookReview" r ON r.book_id = b.id
+    GROUP BY b.id
+    ORDER BY b.created_at DESC
     LIMIT $1 OFFSET $2
   `;
+
   const data = await db.manyOrNone(sql, [limit, offset]);
 
   const countResult = await db.one('SELECT COUNT(*) FROM "Book"');
+
   return {
     total: parseInt(countResult.count, 10),
     page,
