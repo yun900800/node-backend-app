@@ -64,3 +64,13 @@ export const getBookById = async (req, res) => {
   }
   res.json(book);
 };
+
+export const searchBooks = async (req, res) => {
+  try {
+    const keyword = req.query.keyword || '';
+    const books = await bookService.searchBooks(keyword);
+    res.json(books);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}; 

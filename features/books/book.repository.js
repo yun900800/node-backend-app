@@ -1,28 +1,32 @@
-// src/modules/book/book.repository.js
 import { postgres as db, pgp } from '../../shared/db/index.js';
 
 /**
  * 创建新书籍
- * @param {object} bookData { title, author, description, cover_url }
+ * @param {object} bookData { title, author, description, cover_url, back_cover_url, font_color, preface }
  * @returns {Promise<object>} 新创建的书籍记录
  */
 export const createBook = (bookData) => {
   const table = new pgp.helpers.TableName({ table: 'Book' });
   const insertSql = pgp.helpers.insert(bookData, null, table);
-  const sql = `${insertSql} RETURNING id, title, author, description, cover_url, "created_at"`;
+  const sql = `
+    ${insertSql} 
+    RETURNING id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
+  `;
   return db.one(sql);
 };
 
 /**
  * 根据 ID 更新书籍
  * @param {number} id 书籍ID
- * @param {object} bookData 更新数据
+ * @param {object} bookData 更新数据（可以部分字段）
  * @returns {Promise<object|null>}
  */
 export const updateBookById = (id, bookData) => {
   const condition = pgp.as.format('WHERE id = $1', [id]);
   const table = new pgp.helpers.TableName({ table: 'Book' });
-  const updateSql = pgp.helpers.update(bookData, null, table) + ` ${condition} RETURNING *`;
+  const updateSql =
+    pgp.helpers.update(bookData, null, table) +
+    ` ${condition} RETURNING id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"`;
   return db.oneOrNone(updateSql);
 };
 
@@ -40,7 +44,11 @@ export const deleteBookById = async (id) => {
  * 获取单本书籍
  */
 export const findBookById = (id) => {
-  const sql = `SELECT * FROM "Book" WHERE id = $1`;
+  const sql = `
+    SELECT id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
+    FROM "Book" 
+    WHERE id = $1
+  `;
   return db.oneOrNone(sql, [id]);
 };
 
@@ -52,7 +60,8 @@ export const findBookById = (id) => {
 export const findBooksPaginated = async (page = 1, limit = 10) => {
   const offset = (page - 1) * limit;
   const sql = `
-    SELECT * FROM "Book" 
+    SELECT id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
+    FROM "Book" 
     ORDER BY "created_at" DESC
     LIMIT $1 OFFSET $2
   `;
@@ -66,3 +75,18 @@ export const findBooksPaginated = async (page = 1, limit = 10) => {
     data,
   };
 };
+
+/**
+ * 模糊搜索书籍
+ * @param {string} keyword 可选关键词
+ */
+export const getBooks = async (keyword = '') => {
+  const query = `
+    SELECT *
+    FROM "Book"
+    WHERE LOWER(title) LIKE LOWER($1)
+    ORDER BY created_at DESC
+  `;
+  return db.any(query, [`%${keyword}%`]);
+};
+

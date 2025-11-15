@@ -8,13 +8,16 @@ CREATE TABLE "Book" (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE book_reviews (
-  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  book_id INTEGER REFERENCES books(id) ON DELETE CASCADE,
+CREATE TABLE "BookReview" (
+  id SERIAL PRIMARY KEY,
+  book_id INTEGER NOT NULL REFERENCES "Book"(id) ON DELETE CASCADE,
+  reviewer VARCHAR(255), -- 评论者，可以是用户名或匿名
   chapter_title VARCHAR(255),
   content TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
+
 
 
 CREATE TABLE book_components (

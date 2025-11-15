@@ -6,6 +6,7 @@ import authRoutes from './features/auth/auth.routes.js'; // 导入认证模块�
 import aiRouter from './features/ai/ai.router.js'; // 导入 AI 模块路由
 import clientRoutes from './features/client/client.routes.js'; // 导入客户端模块路由
 import booksRoutes from './features/books/book.router.js';
+import reviewsRoutes from './features/book-review/bookReview.routes.js';
 import protect from './middleware/protect.middleware.js'; // 导入保护中间件
 import { corsOptions } from './config/cors.config.js'; // 导入 CORS 配置
 
@@ -37,6 +38,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/client', protect, clientRoutes);
 
 app.use('/api/books', protect, booksRoutes);
+
+app.use('/api/reviews', protect, reviewsRoutes);
 
 // 4. AI 模块路由 (受保护)
 app.use('/api/ai', protect, aiRouter); // AI 模块路由 (受保护)

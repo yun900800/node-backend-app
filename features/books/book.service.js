@@ -41,3 +41,7 @@ export const getBooks = (page, limit) => {
 export const getBookById = (id) => {
   return bookRepository.findBookById(id);
 };
+
+export const searchBooks = async (keyword) => {
+  return await bookRepository.getBooks(keyword);
+};
