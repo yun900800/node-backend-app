@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
 
 app.get('/version', (req, res) => {
   res.json({
-    version: '1.0.3', // 版本信息
+    version: '1.0.4', // 版本信息
     deployedBy: 'GitHub Actions'
   });
 });
