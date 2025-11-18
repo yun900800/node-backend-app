@@ -27,7 +27,8 @@ app.get('/', (req, res) => {
 app.get('/version', (req, res) => {
   res.json({
     version: '1.0.4', // 版本信息
-    deployedBy: 'GitHub Actions'
+    deployedBy: 'GitHub Actions upgrade-workflow', // 部署信息
+    deployedAt: '2024-06-15T12:00:00Z', // 部署时间
   });
 });
 
