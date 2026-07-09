@@ -19,7 +19,7 @@ app.use(cors(corsOptions)); // 使用 CORS 中间件
 app.get('/', (req, res) => {
   res.json({
     status: 'success',
-    message: 'Backend Service Operational (V1.0.5)',
+    message: 'Backend Service Operational (V1.0.6)',
     timestamp: new Date().toISOString(),
   });
 });
