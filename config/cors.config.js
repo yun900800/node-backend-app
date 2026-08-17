@@ -4,6 +4,7 @@
 const allowedOrigins = [
   'https://auth.webhost.innocation.dpdns.org',
   'https://webhost.innocation.dpdns.org',
+  "https://home.bayh.pp.ua",
   // WARNING: 在生产环境中，不应该允许内部 IP，但为了测试暂时保留
   // 生产环境请移除内部 IP 和 localhost，只保留生产域名
   'http://192.168.5.228:5002',
