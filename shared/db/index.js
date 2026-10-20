@@ -29,7 +29,10 @@ export const pgp = pgPromise(initOptions);
 const pgPoolConfig = {
     max: 10,                 // 最大连接数
     idleTimeoutMillis: 30000, // 连接在池中闲置的最长时间
-    connectionTimeoutMillis: 20000 // 尝试建立连接时的超时时间
+    connectionTimeoutMillis: 20000, // 尝试建立连接时的超时时间
+    // Supabase 连接池强制要求 SSL，否则报 ESSLREQUIRED
+    // 本地直连无 SSL 的 Postgres 时，可设置 DB_SSL=disable
+    ssl: process.env.DB_SSL === 'disable' ? false : { rejectUnauthorized: false },
 };
 
 // 合并数据库连接信息和连接池配置
