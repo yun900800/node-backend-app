@@ -29,7 +29,8 @@ export const pgp = pgPromise(initOptions);
 const pgPoolConfig = {
     max: 10,                 // 最大连接数
     idleTimeoutMillis: 30000, // 连接在池中闲置的最长时间
-    connectionTimeoutMillis: 20000, // 尝试建立连接时的超时时间
+    connectionTimeoutMillis: 8000, // 建立连接超时（原 20s，数据库挂掉时不该让请求等这么久）
+    query_timeout: 15000,    // 单条 SQL 执行超时，避免慢查询无限占住连接
     // Supabase 连接池强制要求 SSL，否则报 ESSLREQUIRED
     // 本地直连无 SSL 的 Postgres 时，可设置 DB_SSL=disable
     ssl: process.env.DB_SSL === 'disable' ? false : { rejectUnauthorized: false },
@@ -39,4 +40,10 @@ const pgPoolConfig = {
 export const postgres = pgp({
   ...remoteVercelPoolConfig, // host, port, user, password, database 等
   ...pgPoolConfig          
+});
+
+// 连接池级别的错误（例如空闲连接被服务端断开、SSL 握手失败）如果没人监听，
+// 会升级成 uncaughtException 直接杀死进程。这里只记录，不退出。
+postgres.$pool.on('error', (err) => {
+  console.error('[DB POOL ERROR]', err.code || '-', err.message);
 });
