@@ -12,6 +12,7 @@ import aiRouter from './features/ai/ai.router.js'; // 导入 AI 模块路由
 import clientRoutes from './features/client/client.routes.js'; // 导入客户端模块路由
 import booksRoutes from './features/books/book.router.js';
 import reviewsRoutes from './features/book-review/bookReview.routes.js';
+import publicPortalRoutes from './features/public-portal/publicPortal.routes.js'; // 公开门户路由（无需登录）
 import protect from './middleware/protect.middleware.js'; // 导入保护中间件
 import { corsOptions } from './config/cors.config.js'; // 导入 CORS 配置
 import { postgres } from './shared/db/index.js';
@@ -59,6 +60,9 @@ app.use('/api/auth', authRoutes);
 
 // 2. 客户端模块路由 (受保护)
 app.use('/api/client', protect, clientRoutes);
+
+// 公开门户路由（无需登录，只读）—— 必须挂在 protect 保护的业务路由之前
+app.use('/api/public', publicPortalRoutes);
 
 app.use('/api/books', protect, booksRoutes);
 
