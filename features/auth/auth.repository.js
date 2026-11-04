@@ -59,4 +59,81 @@ export const createUser = (userData) => {
     return db.one(sql);
 };
 
-// 你可以在这里添加其他数据库操作，如 findUserById, updateUserPassword 等。
+// 你可以在这里添加其他数据库操作，如 findUserById, updateUserPassword 等
+
+/* --------------------------------------------------------------------
+ * 邮箱验证码（EmailVerificationCode）
+ * -------------------------------------------------------------------- */
+
+/**
+ * 插入一条验证码记录（code_hash 是 bcrypt 后的哈希）
+ */
+export const insertVerificationCode = ({ email, code_hash, purpose, expires_at }) => {
+    const sql = `
+        INSERT INTO "EmailVerificationCode" (email, code_hash, purpose, expires_at)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, email, purpose, expires_at, created_at
+    `;
+    return db.one(sql, [email, code_hash, purpose, expires_at]);
+};
+
+/**
+ * 查询某邮箱某用途的最新一条验证码记录
+ */
+export const findLatestVerificationCode = (email, purpose) => {
+    const sql = `
+        SELECT id, email, code_hash, purpose, expires_at, consumed_at, attempts, created_at
+        FROM "EmailVerificationCode"
+        WHERE email = $1 AND purpose = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+    `;
+    return db.oneOrNone(sql, [email, purpose]);
+};
+
+/**
+ * 最近一段时间内该邮箱的发送次数（用于频率上限）
+ */
+export const countRecentCodes = (email, windowMinutes) => {
+    const sql = `
+        SELECT COUNT(*)::int AS count
+        FROM "EmailVerificationCode"
+        WHERE email = $1 AND created_at > now() - ($2 || ' minutes')::interval
+    `;
+    return db.one(sql, [email, windowMinutes]);
+};
+
+/**
+ * 验证失败时累加尝试次数
+ */
+export const incrementCodeAttempts = (id) => {
+    const sql = `
+        UPDATE "EmailVerificationCode"
+        SET attempts = attempts + 1
+        WHERE id = $1
+    `;
+    return db.none(sql, [id]);
+};
+
+/**
+ * 验证成功后消费（作废）该验证码
+ */
+export const consumeVerificationCode = (id) => {
+    const sql = `
+        UPDATE "EmailVerificationCode"
+        SET consumed_at = now()
+        WHERE id = $1
+    `;
+    return db.none(sql, [id]);
+};
+
+/**
+ * 清理已过期超过 1 天的记录（顺带垃圾回收）
+ */
+export const purgeExpiredCodes = () => {
+    const sql = `
+        DELETE FROM "EmailVerificationCode"
+        WHERE expires_at < now() - interval '1 day'
+    `;
+    return db.result(sql);
+};

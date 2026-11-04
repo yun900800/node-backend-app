@@ -55,3 +55,18 @@ export const rateLimitMiddleware = [
     // 小时限制（严格限制）
     hourlyLimiter,
 ];
+
+/* ----------------------------------------------------------------------
+ * 3. 邮箱验证码发送限制：15 分钟内最多 20 次/IP
+ *    （比注册类宽松，恶意刷邮件上限也很低）
+ * ---------------------------------------------------------------------- */
+export const emailCodeLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: {
+        message: '发送过于频繁，请稍后再试',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: isLocalTesting ? localTestKeyGenerator : ipKeyGenerator,
+});

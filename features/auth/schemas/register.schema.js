@@ -36,5 +36,16 @@ export const registerSchema = Joi.object({
             'string.min': '用户名至少需要 {#limit} 个字符',
             'string.max': '用户名不能超过 {#limit} 个字符',
             'string.pattern.base': '用户名只能包含字母、数字和下划线'
+        }),
+
+    // 邮箱验证码（强制，purpose='register' 的 6 位数字）
+    code: Joi.string()
+        .pattern(/^\d{6}$/)
+        .length(6)
+        .required()
+        .messages({
+            'string.pattern.base': '验证码必须是 6 位数字',
+            'string.length': '验证码必须是 6 位数字',
+            'any.required': '邮箱验证码是必填项'
         })
 });
