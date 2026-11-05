@@ -26,3 +26,32 @@ export const getReviewsByBookId = async (book_id) => {
   `;
   return db.any(query, [book_id]);
 };
+
+/**
+ * 更新评论
+ * 返回 null 表示评论不存在
+ */
+export const updateBookReview = async (id, { chapter_title, content }) => {
+  const query = `
+    UPDATE "BookReview"
+    SET chapter_title = $2,
+        content = $3,
+        updated_at = NOW()
+    WHERE id = $1
+    RETURNING *;
+  `;
+  return db.oneOrNone(query, [id, chapter_title, content]);
+};
+
+/**
+ * 删除评论
+ * 返回 null 表示评论不存在
+ */
+export const deleteBookReview = async (id) => {
+  const query = `
+    DELETE FROM "BookReview"
+    WHERE id = $1
+    RETURNING *;
+  `;
+  return db.oneOrNone(query, [id]);
+};
