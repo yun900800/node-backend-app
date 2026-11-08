@@ -8,3 +8,11 @@ export class AuthServiceError extends Error {
     this.upstream = upstream;
   }
 }
+
+export class ProfileConflictError extends Error {
+  constructor(message = '该邮箱已被其他档案占用，请联系管理员') {
+    super(message);
+    this.name = 'ProfileConflictError';
+    this.status = 409;
+  }
+}
