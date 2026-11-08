@@ -8,15 +8,45 @@ import 'express-async-errors';
 import express from 'express';
 import cors from 'cors'; // 导入 cors
 import authRoutes from './features/auth/auth.routes.js'; // 导入认证模块路由
+import { createRemoteAuthRouter } from './features/auth/remoteAuthRouter.js';
+import { createAuthServiceClient } from './features/auth/authServiceClient.js';
+import { createProfileRepository } from './features/auth/profile.repository.js';
+import { createTokenCache } from './features/auth/tokenCache.js';
 import aiRouter from './features/ai/ai.router.js'; // 导入 AI 模块路由
 import clientRoutes from './features/client/client.routes.js'; // 导入客户端模块路由
 import booksRoutes from './features/books/book.router.js';
 import reviewsRoutes from './features/book-review/bookReview.routes.js';
 import publicPortalRoutes from './features/public-portal/publicPortal.routes.js'; // 公开门户路由（无需登录）
-import protect from './middleware/protect.middleware.js'; // 导入保护中间件
+import { createProtect } from './middleware/protect.middleware.js'; // 导入保护中间件
 import { corsOptions } from './config/cors.config.js'; // 导入 CORS 配置
+import {
+  JWT_SECRET,
+  AUTH_PROVIDER,
+  AUTH_SERVICE_URL,
+  AUTH_SERVICE_TOKEN,
+  AUTH_TIMEOUT_MS,
+  AUTH_CACHE_TTL_MS,
+} from './config/index.js';
 import { postgres } from './shared/db/index.js';
 import { isDbUnavailable, isCorsRejection } from './shared/errors/db-errors.js';
+
+const remoteAuth = AUTH_PROVIDER === 'remote';
+const authClient = createAuthServiceClient({
+  baseUrl: AUTH_SERVICE_URL,
+  serviceToken: AUTH_SERVICE_TOKEN,
+  timeoutMs: AUTH_TIMEOUT_MS,
+});
+const profiles = createProfileRepository({ db: postgres });
+const protect = createProtect({
+  mode: remoteAuth ? 'remote' : 'local',
+  authClient,
+  profiles,
+  cache: createTokenCache({ ttlMs: AUTH_CACHE_TTL_MS }),
+  jwtSecret: JWT_SECRET,
+});
+const authRouter = remoteAuth
+  ? createRemoteAuthRouter({ authClient, profiles })
+  : authRoutes;
 
 const app = express();
 app.set('trust proxy', true);
@@ -55,8 +85,8 @@ app.get('/version', (req, res) => {
   });
 });
 
-// 1. 认证模块路由 (开放访问)
-app.use('/api/auth', authRoutes);
+// 1. 认证模块路由 (开放访问；remote 模式代理到 auth-service)
+app.use('/api/auth', authRouter);
 
 // 2. 客户端模块路由 (受保护)
 app.use('/api/client', protect, clientRoutes);
