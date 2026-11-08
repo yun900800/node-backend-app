@@ -38,15 +38,24 @@ export function createProfileRepository({ db, newId = createId, now = () => new 
   }
 
   async function link(profile, authUserId) {
-    const updated = await db.oneOrNone(
-      `update "User"
-       set auth_user_id = $1, "updatedAt" = $2
-       where id = $3
-       returning ${COLUMNS}`,
-      [authUserId, now(), profile.id]
-    );
-    if (!updated) throw new ProfileConflictError();
-    return updated;
+    try {
+      const updated = await db.oneOrNone(
+        `update "User"
+         set auth_user_id = $1, "updatedAt" = $2
+         where id = $3
+         returning ${COLUMNS}`,
+        [authUserId, now(), profile.id]
+      );
+      if (!updated) throw new ProfileConflictError();
+      return updated;
+    } catch (err) {
+      if (err?.code === '23505') {
+        const winner = await findByAuthUserId(authUserId);
+        if (winner) return winner;
+        throw new ProfileConflictError();
+      }
+      throw err;
+    }
   }
 
   async function create(authUser) {
