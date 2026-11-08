@@ -77,7 +77,11 @@ export function createProfileRepository({ db, newId = createId, now = () => new 
 
       if (decision.action === 'use') return decision.profile;
       if (decision.action === 'link') return link(decision.profile, authUser.id);
-      if (decision.action === 'conflict') throw new ProfileConflictError();
+      if (decision.action === 'conflict') {
+        const err = new ProfileConflictError();
+        err.existingAuthUserId = decision.existingAuthUserId;
+        throw err;
+      }
 
       try {
         return await create(authUser);
