@@ -33,13 +33,16 @@ export function createAuthServiceClient({
 }) {
   const root = trimBase(baseUrl);
 
-  async function request(path, { method = 'GET', body, token, useServiceToken = false } = {}) {
+  async function request(path, { method = 'GET', body, token } = {}) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const headers = {};
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (token) headers.authorization = `Bearer ${token}`;
-    if (useServiceToken && serviceToken) headers['x-service-token'] = serviceToken;
+    // Every BFF -> auth call carries the service token: auth-service skips its
+    // IP limiter (all BFF users share one server IP) while still applying
+    // per-email login/cooldown/hourly limits.
+    if (serviceToken) headers['x-service-token'] = serviceToken;
 
     let response;
     try {
@@ -81,7 +84,7 @@ export function createAuthServiceClient({
       return request('/api/auth/me', { token });
     },
     introspect(token) {
-      return request('/api/introspect', { method: 'POST', body: { token }, useServiceToken: true });
+      return request('/api/introspect', { method: 'POST', body: { token } });
     },
   };
 }

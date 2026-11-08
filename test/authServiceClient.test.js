@@ -16,6 +16,7 @@ test('login posts JSON and maps the response', async () => {
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
       assert.equal(req.url, '/api/auth/login');
+      assert.equal(req.headers['x-service-token'], 's');
       assert.deepEqual(JSON.parse(body), { email: 'a@b.com', password: 'x' });
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ accessToken: 't', expiresIn: 86400, user: { id: 1, email: 'a@b.com', username: 'alice' } }));
