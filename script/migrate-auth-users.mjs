@@ -23,8 +23,18 @@ if (!bookUrl || !authUrl) {
   process.exit(1);
 }
 
-const book = new Client({ connectionString: bookUrl });
-const auth = new Client({ connectionString: authUrl });
+function makeClient(url, { ssl = false } = {}) {
+  const parsed = new URL(url);
+  parsed.searchParams.delete('sslmode');
+  const local = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+  return new Client({
+    connectionString: parsed.toString(),
+    ssl: ssl && !local ? { rejectUnauthorized: false } : undefined,
+  });
+}
+
+const book = makeClient(bookUrl, { ssl: true });
+const auth = makeClient(authUrl);
 
 async function main() {
   await book.connect();
