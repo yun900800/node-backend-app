@@ -3,7 +3,6 @@
 // id keeps the existing cuid style and is generated explicitly because raw SQL
 // bypasses Prisma's defaults.
 
-import { createId } from '@paralleldrive/cuid2';
 import { ProfileConflictError } from './authErrors.js';
 import { resolveProfile } from './profileResolver.js';
 
@@ -11,9 +10,9 @@ const COLUMNS = 'id, email, username, auth_user_id';
 const SENTINEL_PASSWORD = '!remote-only';
 
 /**
- * @param {{ db: object, newId?: () => string, now?: () => Date }} deps
+ * @param {{ db: object, now?: () => Date }} deps
  */
-export function createProfileRepository({ db, newId = createId, now = () => new Date() }) {
+export function createProfileRepository({ db, now = () => new Date() }) {
   async function findByAuthUserId(authUserId) {
     return db.oneOrNone(
       `select ${COLUMNS} from "User" where auth_user_id = $1`,
@@ -60,13 +59,14 @@ export function createProfileRepository({ db, newId = createId, now = () => new 
 
   async function create(authUser) {
     const at = now();
+    // The live "User" table uses a bigint sequence (despite the Prisma model's
+    // cuid annotation), so let PostgreSQL allocate the profile id.
     return db.one(
       `insert into "User"
-         (id, email, password, username, "createdAt", "updatedAt", auth_user_id)
-       values ($1, $2, $3, $4, $5, $5, $6)
+         (email, password, username, "createdAt", "updatedAt", auth_user_id)
+       values ($1, $2, $3, $4, $4, $5)
        returning ${COLUMNS}`,
       [
-        newId(),
         String(authUser.email).trim().toLowerCase(),
         SENTINEL_PASSWORD,
         authUser.username ?? null,
