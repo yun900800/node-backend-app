@@ -1,16 +1,27 @@
 import { postgres as db, pgp } from '../../shared/db/index.js';
 
+const BOOK_COLUMNS = `
+  id, title, author, description, cover_url, back_cover_url, font_color, preface,
+  front_cover_back_text, slug, category, tags, series_name, series_order,
+  status, published_at, created_at
+`;
+
+const PUBLISHED_BOOK = `status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`;
+const PUBLISHED_REVIEW = `status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`;
+const PUBLISHED_BOOK_ALIASED = `b.status = 'published' AND b.published_at IS NOT NULL AND b.published_at <= NOW()`;
+const PUBLISHED_REVIEW_ALIASED = `r.status = 'published' AND r.published_at IS NOT NULL AND r.published_at <= NOW()`;
+
 /**
  * 创建新书籍
- * @param {object} bookData { title, author, description, cover_url, back_cover_url, font_color, preface }
+ * @param {object} bookData
  * @returns {Promise<object>} 新创建的书籍记录
  */
 export const createBook = (bookData) => {
   const table = new pgp.helpers.TableName({ table: 'Book' });
   const insertSql = pgp.helpers.insert(bookData, null, table);
   const sql = `
-    ${insertSql} 
-    RETURNING id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
+    ${insertSql}
+    RETURNING ${BOOK_COLUMNS}
   `;
   return db.one(sql);
 };
@@ -26,7 +37,7 @@ export const updateBookById = (id, bookData) => {
   const table = new pgp.helpers.TableName({ table: 'Book' });
   const updateSql =
     pgp.helpers.update(bookData, null, table) +
-    ` ${condition} RETURNING id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"`;
+    ` ${condition} RETURNING ${BOOK_COLUMNS}`;
   return db.oneOrNone(updateSql);
 };
 
@@ -41,13 +52,27 @@ export const deleteBookById = async (id) => {
 };
 
 /**
- * 获取单本书籍
+ * slug 是否已被占用
  */
-export const findBookById = (id) => {
+export const slugExists = async (slug) => {
+  const row = await db.oneOrNone(
+    'SELECT 1 FROM "Book" WHERE slug = $1 LIMIT 1',
+    [slug]
+  );
+  return Boolean(row);
+};
+
+/**
+ * 获取单本书籍
+ * @param {number} id
+ * @param {{ publishedOnly?: boolean }} options
+ */
+export const findBookById = (id, { publishedOnly = false } = {}) => {
+  const filter = publishedOnly ? `AND ${PUBLISHED_BOOK}` : '';
   const sql = `
-    SELECT id, title, author, description, cover_url, back_cover_url, font_color, preface, front_cover_back_text, "created_at"
-    FROM "Book" 
-    WHERE id = $1
+    SELECT ${BOOK_COLUMNS}
+    FROM "Book"
+    WHERE id = $1 ${filter}
   `;
   return db.oneOrNone(sql, [id]);
 };
@@ -56,12 +81,21 @@ export const findBookById = (id) => {
  * 获取书籍列表（分页）
  * @param {number} page 当前页
  * @param {number} limit 每页数量
+ * @param {{ publishedOnly?: boolean }} options
  */
-export const findBooksPaginated = async (page = 1, limit = 10) => {
+export const findBooksPaginated = async (
+  page = 1,
+  limit = 10,
+  { publishedOnly = false } = {}
+) => {
   const offset = (page - 1) * limit;
+  const bookFilter = publishedOnly ? `WHERE ${PUBLISHED_BOOK_ALIASED}` : '';
+  const reviewFilter = publishedOnly
+    ? `FILTER (WHERE r.id IS NOT NULL AND ${PUBLISHED_REVIEW_ALIASED})`
+    : 'FILTER (WHERE r.id IS NOT NULL)';
 
   const sql = `
-    SELECT 
+    SELECT
       b.id,
       b.title,
       b.author,
@@ -71,6 +105,13 @@ export const findBooksPaginated = async (page = 1, limit = 10) => {
       b.font_color,
       b.preface,
       b.front_cover_back_text,
+      b.slug,
+      b.category,
+      b.tags,
+      b.series_name,
+      b.series_order,
+      b.status,
+      b.published_at,
       b.created_at,
       COALESCE(
         json_agg(
@@ -81,11 +122,12 @@ export const findBooksPaginated = async (page = 1, limit = 10) => {
             'content', r.content,
             'created_at', r.created_at
           )
-        ) FILTER (WHERE r.id IS NOT NULL),
+        ) ${reviewFilter},
         '[]'
       ) AS reviews
     FROM "Book" b
     LEFT JOIN "BookReview" r ON r.book_id = b.id
+    ${bookFilter}
     GROUP BY b.id
     ORDER BY b.created_at DESC
     LIMIT $1 OFFSET $2
@@ -93,7 +135,9 @@ export const findBooksPaginated = async (page = 1, limit = 10) => {
 
   const data = await db.manyOrNone(sql, [limit, offset]);
 
-  const countResult = await db.one('SELECT COUNT(*) FROM "Book"');
+  const countResult = publishedOnly
+    ? await db.one(`SELECT COUNT(*) FROM "Book" WHERE ${PUBLISHED_BOOK}`)
+    : await db.one('SELECT COUNT(*) FROM "Book"');
 
   return {
     total: parseInt(countResult.count, 10),
@@ -116,4 +160,3 @@ export const getBooks = async (keyword = '') => {
   `;
   return db.any(query, [`%${keyword}%`]);
 };
-

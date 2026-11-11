@@ -10,7 +10,7 @@ import * as bookReviewService from '../book-review/bookReview.service.js';
 export const getPublicBooks = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 12;
-  const result = await bookService.getBooks(page, limit);
+  const result = await bookService.getBooks(page, limit, { publishedOnly: true });
   res.json(result);
 };
 
@@ -20,7 +20,7 @@ export const getPublicBooks = async (req, res) => {
  */
 export const getPublicBookDetail = async (req, res) => {
   const { bookId } = req.params;
-  const book = await bookService.getBookById(bookId);
+  const book = await bookService.getBookById(bookId, { publishedOnly: true });
 
   if (!book) {
     return res.status(404).json({ message: 'Book not found' });
@@ -28,7 +28,9 @@ export const getPublicBookDetail = async (req, res) => {
 
   let reviews = [];
   try {
-    reviews = await bookReviewService.getReviewsForBook(bookId);
+    reviews = await bookReviewService.getReviewsForBook(bookId, {
+      publishedOnly: true,
+    });
   } catch (err) {
     // 评论查询失败不影响主数据展示
     reviews = [];
