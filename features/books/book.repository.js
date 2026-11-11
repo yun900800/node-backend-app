@@ -3,7 +3,7 @@ import { postgres as db, pgp } from '../../shared/db/index.js';
 const BOOK_COLUMNS = `
   id, title, author, description, cover_url, back_cover_url, font_color, preface,
   front_cover_back_text, slug, category, tags, series_name, series_order,
-  status, published_at, created_at
+  status, published_at, seo_title, seo_description, created_at
 `;
 
 const PUBLISHED_BOOK = `status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`;
@@ -112,6 +112,8 @@ export const findBooksPaginated = async (
       b.series_order,
       b.status,
       b.published_at,
+      b.seo_title,
+      b.seo_description,
       b.created_at,
       COALESCE(
         json_agg(

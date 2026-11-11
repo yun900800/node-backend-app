@@ -1,6 +1,12 @@
 // src/modules/book/book.controller.js
 import * as bookService from './book.service.js';
 
+const respondWithError = (res, err, fallbackMessage) => {
+  const status = err.status || 500;
+  const message = status === 500 ? fallbackMessage : err.message;
+  res.status(status).json({ error: message, message });
+};
+
 /**
  * 创建书籍
  */
@@ -10,7 +16,7 @@ export const createBook = async (req, res) => {
     res.status(201).json({ message: 'Book created successfully', book });
   } catch (err) {
     console.error('Create book error:', err);
-    res.status(500).json({ message: 'Failed to create book' });
+    respondWithError(res, err, 'Failed to create book');
   }
 };
 
@@ -22,12 +28,12 @@ export const updateBook = async (req, res) => {
   try {
     const book = await bookService.updateBook(id, req.body);
     if (!book) {
-      return res.status(404).json({ message: 'Book not found' });
+      return res.status(404).json({ message: 'Book not found', error: 'Book not found' });
     }
     res.json({ message: 'Book updated', book });
   } catch (err) {
     console.error('Update book error:', err);
-    res.status(500).json({ message: 'Failed to update book' });
+    respondWithError(res, err, 'Failed to update book');
   }
 };
 

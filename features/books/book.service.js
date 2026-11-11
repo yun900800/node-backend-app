@@ -33,11 +33,19 @@ const pickBookFields = (source = {}) =>
     ).map((field) => [field, source[field]])
   );
 
+const createValidationError = (message, status = 400) => {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+};
+
 /**
  * 创建书籍
  */
 export const createBook = async (bookData = {}) => {
-  if (!bookData.title) throw new Error('Title is required');
+  if (!bookData.title) {
+    throw createValidationError('Title is required');
+  }
 
   const status = normalizePublishStatus(bookData.status, 'draft');
   const tags = normalizeTags(bookData.tags);
@@ -77,14 +85,14 @@ export const updateBook = async (id, bookData = {}) => {
 
   if (updates.slug !== undefined) {
     if (String(updates.slug).trim() === '') {
-      throw new Error('Slug 不能为空');
+      throw createValidationError('Slug 不能为空');
     }
     const nextSlug = generateSlug(updates.slug);
     if (
       nextSlug !== existing.slug &&
       (await bookRepository.slugExists(nextSlug))
     ) {
-      throw new Error(`Slug 已被占用: ${nextSlug}`);
+      throw createValidationError(`Slug 已被占用: ${nextSlug}`, 409);
     }
     updates.slug = nextSlug;
   }
