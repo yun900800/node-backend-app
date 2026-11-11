@@ -20,7 +20,14 @@ export const getPublicBooks = async (req, res) => {
  */
 export const getPublicBookDetail = async (req, res) => {
   const { bookId } = req.params;
-  const book = await bookService.getBookById(bookId, { publishedOnly: true });
+  const key = String(bookId || '').trim();
+  const isNumericId = /^\d+$/.test(key);
+
+  const book = isNumericId
+    ? await bookService.getBookById(key, { publishedOnly: true })
+    : await bookService.getBookBySlug(key.toLowerCase(), {
+        publishedOnly: true,
+      });
 
   if (!book) {
     return res.status(404).json({ message: 'Book not found' });
@@ -28,7 +35,7 @@ export const getPublicBookDetail = async (req, res) => {
 
   let reviews = [];
   try {
-    reviews = await bookReviewService.getReviewsForBook(bookId, {
+    reviews = await bookReviewService.getReviewsForBook(book.id, {
       publishedOnly: true,
     });
   } catch (err) {

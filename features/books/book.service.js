@@ -130,6 +130,13 @@ export const getBookById = (id, options = {}) => {
   return bookRepository.findBookById(id, options);
 };
 
+/**
+ * 根据 slug 获取单本书籍
+ */
+export const getBookBySlug = (slug, options = {}) => {
+  return bookRepository.findBookBySlug(slug, options);
+};
+
 export const searchBooks = async (keyword) => {
   return await bookRepository.getBooks(keyword);
 };

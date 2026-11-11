@@ -78,6 +78,21 @@ export const findBookById = (id, { publishedOnly = false } = {}) => {
 };
 
 /**
+ * 根据 slug 获取单本书籍
+ * @param {string} slug
+ * @param {{ publishedOnly?: boolean }} options
+ */
+export const findBookBySlug = (slug, { publishedOnly = false } = {}) => {
+  const filter = publishedOnly ? `AND ${PUBLISHED_BOOK}` : '';
+  const sql = `
+    SELECT ${BOOK_COLUMNS}
+    FROM "Book"
+    WHERE slug = $1 ${filter}
+  `;
+  return db.oneOrNone(sql, [slug]);
+};
+
+/**
  * 获取书籍列表（分页）
  * @param {number} page 当前页
  * @param {number} limit 每页数量
