@@ -6,10 +6,22 @@ const BOOK_COLUMNS = `
   status, published_at, seo_title, seo_description, created_at
 `;
 
-const PUBLISHED_BOOK = `status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`;
-const PUBLISHED_REVIEW = `status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`;
-const PUBLISHED_BOOK_ALIASED = `b.status = 'published' AND b.published_at IS NOT NULL AND b.published_at <= NOW()`;
-const PUBLISHED_REVIEW_ALIASED = `r.status = 'published' AND r.published_at IS NOT NULL AND r.published_at <= NOW()`;
+// `published_at` is written as a timestamp without time zone using the Node
+// process timezone. Compare it against the same wall-clock timezone instead of
+// UTC; otherwise a freshly published book is treated as future-dated.
+const APP_TIME_ZONE = (() => {
+  const resolved =
+    process.env.APP_TIME_ZONE ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'UTC';
+  return /^[A-Za-z0-9_+\-/]+$/.test(resolved) ? resolved : 'UTC';
+})();
+const APP_NOW = `(NOW() AT TIME ZONE '${APP_TIME_ZONE}')`;
+
+const PUBLISHED_BOOK = `status = 'published' AND published_at IS NOT NULL AND published_at <= ${APP_NOW}`;
+const PUBLISHED_REVIEW = `status = 'published' AND published_at IS NOT NULL AND published_at <= ${APP_NOW}`;
+const PUBLISHED_BOOK_ALIASED = `b.status = 'published' AND b.published_at IS NOT NULL AND b.published_at <= ${APP_NOW}`;
+const PUBLISHED_REVIEW_ALIASED = `r.status = 'published' AND r.published_at IS NOT NULL AND r.published_at <= ${APP_NOW}`;
 
 /**
  * 创建新书籍
