@@ -213,6 +213,37 @@ export const findBooksPaginated = async (
 };
 
 /**
+ * 获取所有已发布书籍，供相关书籍排序使用。
+ * 当前站点规模较小，直接在 service 层计算相关性；后续数据量变大时再下推到 SQL。
+ */
+export const findPublishedBooksForRelated = () => {
+  return db.any(`
+    SELECT
+      b.id,
+      b.title,
+      b.author,
+      b.description,
+      b.cover_url,
+      b.font_color,
+      b.slug,
+      b.category,
+      b.tags,
+      b.series_name,
+      b.series_order,
+      b.published_at,
+      b.seo_description,
+      (
+        SELECT COUNT(*)::int
+        FROM "BookReview" r
+        WHERE r.book_id = b.id AND ${PUBLISHED_REVIEW_ALIASED}
+      ) AS review_count
+    FROM "Book" b
+    WHERE ${PUBLISHED_BOOK_ALIASED}
+    ORDER BY b.published_at DESC, b.id DESC
+  `);
+};
+
+/**
  * 获取公开站点的分类 / 标签 / 系列及数量
  */
 export const findPublicTaxonomies = async () => {

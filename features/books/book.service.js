@@ -1,4 +1,5 @@
 import * as bookRepository from './book.repository.js';
+import { rankRelatedBooks } from './relatedBooks.js';
 import { generateSlug, ensureUniqueSlug } from '../../shared/slug.js';
 import {
   normalizePublishStatus,
@@ -128,6 +129,15 @@ export const getBooks = (page, limit, options = {}) => {
  */
 export const getTaxonomies = () => {
   return bookRepository.findPublicTaxonomies();
+};
+
+/**
+ * 获取与当前书籍相关的已发布书籍
+ */
+export const getRelatedBooks = async (book, limit = 4) => {
+  if (!book) return [];
+  const candidates = await bookRepository.findPublishedBooksForRelated();
+  return rankRelatedBooks(book, candidates, limit);
 };
 
 /**

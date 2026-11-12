@@ -5,6 +5,7 @@ import * as bookReviewService from '../book-review/bookReview.service.js';
 
 const DEFAULT_LATEST_REVIEWS = 5;
 const MAX_LATEST_REVIEWS = 20;
+const DEFAULT_RELATED_BOOKS = 4;
 
 export const parseLatestReviewLimit = (value) => {
   const parsed = Number.parseInt(value, 10);
@@ -79,5 +80,13 @@ export const getPublicBookDetail = async (req, res) => {
     reviews = [];
   }
 
-  res.json({ ...book, reviews });
+  let related = [];
+  try {
+    related = await bookService.getRelatedBooks(book, DEFAULT_RELATED_BOOKS);
+  } catch (err) {
+    // 相关书籍查询失败不影响主数据展示
+    related = [];
+  }
+
+  res.json({ ...book, reviews, related });
 };
