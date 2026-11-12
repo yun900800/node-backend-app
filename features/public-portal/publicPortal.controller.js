@@ -29,8 +29,25 @@ export const getPublicLatestReviews = async (req, res) => {
 export const getPublicBooks = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 12;
-  const result = await bookService.getBooks(page, limit, { publishedOnly: true });
+  const category = String(req.query.category || '').trim();
+  const tag = String(req.query.tag || '').trim();
+  const series = String(req.query.series || '').trim();
+  const result = await bookService.getBooks(page, limit, {
+    publishedOnly: true,
+    category,
+    tag,
+    series,
+  });
   res.json(result);
+};
+
+/**
+ * 获取公开站点的分类 / 标签 / 系列
+ * GET /api/public/taxonomies
+ */
+export const getPublicTaxonomies = async (req, res) => {
+  const taxonomies = await bookService.getTaxonomies();
+  res.json(taxonomies);
 };
 
 /**

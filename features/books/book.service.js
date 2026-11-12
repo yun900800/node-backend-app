@@ -124,6 +124,13 @@ export const getBooks = (page, limit, options = {}) => {
 };
 
 /**
+ * 获取公开站点的分类 / 标签 / 系列
+ */
+export const getTaxonomies = () => {
+  return bookRepository.findPublicTaxonomies();
+};
+
+/**
  * 获取单本书籍
  */
 export const getBookById = (id, options = {}) => {

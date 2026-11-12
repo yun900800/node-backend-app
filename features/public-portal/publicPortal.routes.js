@@ -14,6 +14,7 @@ const publicReadLimiter = rateLimit({
 });
 
 router.get('/reviews', publicReadLimiter, controller.getPublicLatestReviews);
+router.get('/taxonomies', publicReadLimiter, controller.getPublicTaxonomies);
 router.get('/books', publicReadLimiter, controller.getPublicBooks);
 router.get('/books/:bookId', publicReadLimiter, controller.getPublicBookDetail);
 

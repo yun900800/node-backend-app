@@ -125,15 +125,34 @@ export const findLatestPublishedReviews = (limit = 5) => {
  * 获取书籍列表（分页）
  * @param {number} page 当前页
  * @param {number} limit 每页数量
- * @param {{ publishedOnly?: boolean }} options
+ * @param {{ publishedOnly?: boolean, category?: string, tag?: string, series?: string }} options
  */
 export const findBooksPaginated = async (
   page = 1,
   limit = 10,
-  { publishedOnly = false } = {}
+  { publishedOnly = false, category, tag, series } = {}
 ) => {
   const offset = (page - 1) * limit;
-  const bookFilter = publishedOnly ? `WHERE ${PUBLISHED_BOOK_ALIASED}` : '';
+  const conditions = [];
+  const params = [];
+
+  if (publishedOnly) conditions.push(PUBLISHED_BOOK_ALIASED);
+  if (category) {
+    params.push(category);
+    conditions.push(`b.category = $${params.length}`);
+  }
+  if (tag) {
+    params.push(tag);
+    conditions.push(`$${params.length} = ANY(b.tags)`);
+  }
+  if (series) {
+    params.push(series);
+    conditions.push(`b.series_name = $${params.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const limitIndex = params.length + 1;
+  const offsetIndex = params.length + 2;
   const reviewFilter = publishedOnly
     ? `FILTER (WHERE r.id IS NOT NULL AND ${PUBLISHED_REVIEW_ALIASED})`
     : 'FILTER (WHERE r.id IS NOT NULL)';
@@ -173,17 +192,17 @@ export const findBooksPaginated = async (
       ) AS reviews
     FROM "Book" b
     LEFT JOIN "BookReview" r ON r.book_id = b.id
-    ${bookFilter}
+    ${where}
     GROUP BY b.id
     ORDER BY b.created_at DESC
-    LIMIT $1 OFFSET $2
+    LIMIT $${limitIndex} OFFSET $${offsetIndex}
   `;
 
-  const data = await db.manyOrNone(sql, [limit, offset]);
-
-  const countResult = publishedOnly
-    ? await db.one(`SELECT COUNT(*) FROM "Book" WHERE ${PUBLISHED_BOOK}`)
-    : await db.one('SELECT COUNT(*) FROM "Book"');
+  const data = await db.manyOrNone(sql, [...params, limit, offset]);
+  const countResult = await db.one(
+    `SELECT COUNT(*) FROM "Book" b ${where}`,
+    params
+  );
 
   return {
     total: parseInt(countResult.count, 10),
@@ -191,6 +210,49 @@ export const findBooksPaginated = async (
     limit,
     data,
   };
+};
+
+/**
+ * 获取公开站点的分类 / 标签 / 系列及数量
+ */
+export const findPublicTaxonomies = async () => {
+  const [categories, tags, series] = await Promise.all([
+    db.any(`
+      SELECT name, COUNT(*)::int AS count
+      FROM (
+        SELECT category AS name
+        FROM "Book"
+        WHERE ${PUBLISHED_BOOK}
+      ) source
+      WHERE name IS NOT NULL AND name <> ''
+      GROUP BY name
+      ORDER BY count DESC, name ASC
+    `),
+    db.any(`
+      SELECT name, COUNT(*)::int AS count
+      FROM (
+        SELECT unnest(tags) AS name
+        FROM "Book"
+        WHERE ${PUBLISHED_BOOK}
+      ) source
+      WHERE name IS NOT NULL AND name <> ''
+      GROUP BY name
+      ORDER BY count DESC, name ASC
+    `),
+    db.any(`
+      SELECT name, COUNT(*)::int AS count
+      FROM (
+        SELECT series_name AS name
+        FROM "Book"
+        WHERE ${PUBLISHED_BOOK}
+      ) source
+      WHERE name IS NOT NULL AND name <> ''
+      GROUP BY name
+      ORDER BY count DESC, name ASC
+    `),
+  ]);
+
+  return { categories, tags, series };
 };
 
 /**
