@@ -1,22 +1,11 @@
 import { postgres as db, pgp } from '../../shared/db/index.js';
+import { APP_NOW } from '../../shared/publishing.js';
 
 const BOOK_COLUMNS = `
   id, title, author, description, cover_url, back_cover_url, font_color, preface,
   front_cover_back_text, slug, category, tags, series_name, series_order,
   status, published_at, seo_title, seo_description, created_at
 `;
-
-// `published_at` is written as a timestamp without time zone using the Node
-// process timezone. Compare it against the same wall-clock timezone instead of
-// UTC; otherwise a freshly published book is treated as future-dated.
-const APP_TIME_ZONE = (() => {
-  const resolved =
-    process.env.APP_TIME_ZONE ||
-    Intl.DateTimeFormat().resolvedOptions().timeZone ||
-    'UTC';
-  return /^[A-Za-z0-9_+\-/]+$/.test(resolved) ? resolved : 'UTC';
-})();
-const APP_NOW = `(NOW() AT TIME ZONE '${APP_TIME_ZONE}')`;
 
 const PUBLISHED_BOOK = `status = 'published' AND published_at IS NOT NULL AND published_at <= ${APP_NOW}`;
 const PUBLISHED_REVIEW = `status = 'published' AND published_at IS NOT NULL AND published_at <= ${APP_NOW}`;
@@ -102,6 +91,34 @@ export const findBookBySlug = (slug, { publishedOnly = false } = {}) => {
     WHERE slug = $1 ${filter}
   `;
   return db.oneOrNone(sql, [slug]);
+};
+
+/**
+ * 获取全站最新公开书评
+ * @param {number} limit 返回数量
+ */
+export const findLatestPublishedReviews = (limit = 5) => {
+  const sql = `
+    SELECT
+      r.id,
+      r.book_id,
+      r.reviewer,
+      r.chapter_title,
+      r.content,
+      r.created_at,
+      r.published_at,
+      b.title AS book_title,
+      b.author AS book_author,
+      b.slug AS book_slug,
+      b.cover_url AS book_cover_url
+    FROM "BookReview" r
+    INNER JOIN "Book" b ON b.id = r.book_id
+    WHERE ${PUBLISHED_REVIEW_ALIASED}
+      AND ${PUBLISHED_BOOK_ALIASED}
+    ORDER BY r.published_at DESC, r.created_at DESC, r.id DESC
+    LIMIT $1
+  `;
+  return db.any(sql, [limit]);
 };
 
 /**

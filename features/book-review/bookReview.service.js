@@ -29,6 +29,10 @@ export const addReview = async (reviewData = {}) => {
   });
 };
 
+export const getLatestPublishedReviews = (limit = 5) => {
+  return bookRepo.findLatestPublishedReviews(limit);
+};
+
 export const getReviewsForBook = async (book_id, options = {}) => {
   // ✅ 检查书籍是否存在（公开模式只认已发布书籍）
   const bookExists = await bookRepo.findBookById(book_id, options);

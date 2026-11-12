@@ -1,5 +1,6 @@
 // src/modules/bookReview/bookReview.repository.js
 import { postgres as db } from '../../shared/db/index.js';
+import { APP_NOW } from '../../shared/publishing.js';
 
 /**
  * 创建新评论
@@ -32,7 +33,7 @@ export const getReviewsByBookId = async (
   { publishedOnly = false } = {}
 ) => {
   const filter = publishedOnly
-    ? `AND status = 'published' AND published_at IS NOT NULL AND published_at <= NOW()`
+    ? `AND status = 'published' AND published_at IS NOT NULL AND published_at <= ${APP_NOW}`
     : '';
   const query = `
     SELECT * FROM "BookReview"
@@ -56,10 +57,10 @@ export const updateBookReview = async (
         content = $3,
         status = COALESCE($4, status),
         published_at = CASE
-          WHEN $4 = 'published' AND published_at IS NULL THEN NOW()
+          WHEN $4 = 'published' AND published_at IS NULL THEN ${APP_NOW}
           ELSE published_at
         END,
-        updated_at = NOW()
+        updated_at = ${APP_NOW}
     WHERE id = $1
     RETURNING *;
   `;

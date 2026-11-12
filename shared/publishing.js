@@ -1,5 +1,19 @@
 export const PUBLISH_STATUSES = ['draft', 'published'];
 
+// `published_at` is written as a timestamp without time zone using the Node
+// process timezone. Compare it against the same wall-clock timezone instead of
+// UTC; otherwise a freshly published record is treated as future-dated.
+const resolveAppTimeZone = () => {
+  const resolved =
+    process.env.APP_TIME_ZONE ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'UTC';
+  return /^[A-Za-z0-9_+\-/]+$/.test(resolved) ? resolved : 'UTC';
+};
+
+export const APP_TIME_ZONE = resolveAppTimeZone();
+export const APP_NOW = `(NOW() AT TIME ZONE '${APP_TIME_ZONE}')`;
+
 export function normalizePublishStatus(value, fallback = 'draft') {
   if (value === undefined || value === null || value === '') return fallback;
   if (!PUBLISH_STATUSES.includes(value)) {

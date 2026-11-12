@@ -3,6 +3,25 @@
 import * as bookService from '../books/book.service.js';
 import * as bookReviewService from '../book-review/bookReview.service.js';
 
+const DEFAULT_LATEST_REVIEWS = 5;
+const MAX_LATEST_REVIEWS = 20;
+
+export const parseLatestReviewLimit = (value) => {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_LATEST_REVIEWS;
+  return Math.min(Math.max(parsed, 1), MAX_LATEST_REVIEWS);
+};
+
+/**
+ * 获取全站最新公开书评
+ * GET /api/public/reviews?limit=5
+ */
+export const getPublicLatestReviews = async (req, res) => {
+  const limit = parseLatestReviewLimit(req.query.limit);
+  const reviews = await bookReviewService.getLatestPublishedReviews(limit);
+  res.json({ data: reviews, limit });
+};
+
 /**
  * 分页获取书籍列表（每本书内嵌评论）
  * GET /api/public/books?page=1&limit=12
