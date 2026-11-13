@@ -23,6 +23,11 @@ export const createBookReview = async (reviewData) => {
   return db.one(query, values);
 };
 
+export const findReviewById = async (id) => {
+  const query = 'SELECT * FROM "BookReview" WHERE id = $1';
+  return db.oneOrNone(query, [id]);
+};
+
 /**
  * 根据书籍 ID 获取评论列表
  * @param {number} book_id
@@ -49,22 +54,25 @@ export const getReviewsByBookId = async (
  */
 export const updateBookReview = async (
   id,
-  { chapter_title, content, status }
+  { chapter_title, content, status, published_at }
 ) => {
   const query = `
     UPDATE "BookReview"
     SET chapter_title = $2,
         content = $3,
         status = COALESCE($4, status),
-        published_at = CASE
-          WHEN $4 = 'published' AND published_at IS NULL THEN ${APP_NOW}
-          ELSE published_at
-        END,
+        published_at = $5,
         updated_at = ${APP_NOW}
     WHERE id = $1
     RETURNING *;
   `;
-  return db.oneOrNone(query, [id, chapter_title, content, status ?? null]);
+  return db.oneOrNone(query, [
+    id,
+    chapter_title,
+    content,
+    status ?? null,
+    published_at ?? null,
+  ]);
 };
 
 /**

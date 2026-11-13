@@ -2,6 +2,7 @@
 import * as bookReviewRepo from './bookReview.repository.js';
 import * as bookRepo from '../books/book.repository.js';
 import {
+  normalizePublishedAt,
   normalizePublishStatus,
   resolvePublishedAt,
 } from '../../shared/publishing.js';
@@ -18,7 +19,7 @@ export const addReview = async (reviewData = {}) => {
   const status = normalizePublishStatus(reviewData.status, 'draft');
   const published_at = resolvePublishedAt({
     status,
-    providedAt: reviewData.published_at,
+    providedAt: parsePublishedAt(reviewData.published_at),
   });
 
   // ✅ 保存评论（默认草稿，发布由管理端显式触发）
@@ -61,19 +62,42 @@ const assertContent = (content) => {
   }
 };
 
+const parsePublishedAt = (value) => {
+  try {
+    return normalizePublishedAt(value);
+  } catch {
+    throw createHttpError('发布时间无效', 400);
+  }
+};
+
 export const updateReview = async (id, reviewData = {}) => {
   const reviewId = parseReviewId(id);
   assertContent(reviewData.content);
+
+  const existing = await bookReviewRepo.findReviewById(reviewId);
+  if (!existing) {
+    throw createHttpError('评论不存在', 404);
+  }
 
   const status =
     reviewData.status === undefined
       ? undefined
       : normalizePublishStatus(reviewData.status);
+  const providedAt = parsePublishedAt(reviewData.published_at);
+  const published_at =
+    status === undefined
+      ? providedAt ?? existing.published_at
+      : resolvePublishedAt({
+          status,
+          providedAt,
+          previousAt: existing.published_at,
+        });
 
   const updated = await bookReviewRepo.updateBookReview(reviewId, {
     chapter_title: reviewData.chapter_title,
     content: reviewData.content,
     status,
+    published_at,
   });
 
   if (!updated) {

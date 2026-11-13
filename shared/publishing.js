@@ -22,6 +22,16 @@ export function normalizePublishStatus(value, fallback = 'draft') {
   return value;
 }
 
+export function normalizePublishedAt(value) {
+  if (value === undefined || value === null || value === '') return undefined;
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Invalid published_at');
+  }
+  return date;
+}
+
 /**
  * 发布时间规则：
  * - 发布：优先用传入时间，其次保留上次发布时间，最后取当前时间
@@ -29,9 +39,10 @@ export function normalizePublishStatus(value, fallback = 'draft') {
  */
 export function resolvePublishedAt({ status, providedAt, previousAt }) {
   if (status !== 'published') return previousAt ?? null;
-  if (providedAt) {
-    return providedAt instanceof Date ? providedAt : new Date(providedAt);
-  }
+
+  const normalizedProvidedAt = normalizePublishedAt(providedAt);
+  if (normalizedProvidedAt) return normalizedProvidedAt;
+
   return previousAt ?? new Date();
 }
 

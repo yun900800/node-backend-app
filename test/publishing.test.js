@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  normalizePublishedAt,
   normalizePublishStatus,
   normalizeTags,
   resolvePublishedAt,
@@ -40,6 +41,20 @@ test('草稿保留历史发布时间，新建草稿没有发布时间', () => {
     previous.toISOString()
   );
   assert.equal(resolvePublishedAt({ status: 'draft' }), null);
+});
+
+test('发布时间支持 Date / ISO 字符串，空值返回 undefined', () => {
+  const date = new Date('2026-12-01T09:30:00.000Z');
+
+  assert.equal(normalizePublishedAt(undefined), undefined);
+  assert.equal(normalizePublishedAt(null), undefined);
+  assert.equal(normalizePublishedAt(''), undefined);
+  assert.equal(normalizePublishedAt(date).toISOString(), date.toISOString());
+  assert.equal(
+    normalizePublishedAt('2026-12-01T09:30:00.000Z').toISOString(),
+    date.toISOString()
+  );
+  assert.throws(() => normalizePublishedAt('not-a-date'), /Invalid published_at/);
 });
 
 test('tags 去重、去空白、过滤空值', () => {
